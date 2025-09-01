@@ -15,7 +15,7 @@ def check_model_file():
     if not model_path.exists():
         print("❌ YOLO model file 'train5_11.pt' not found!")
         print("📁 Please ensure the model file is in the parent directory")
-        print("🔗 Model path expected: train5_11.pt")
+        print("🔗 Model path expected: ../train5_11.pt")
         return False
     
     print(f"✅ YOLO model found: {model_path.absolute()}")
@@ -54,11 +54,14 @@ def main():
     print("🌐 Service will be available at: http://localhost:8000")
     print("📋 Health check: http://localhost:8000/health")
     print("🔧 Model info: http://localhost:8000/model-info")
+    print("📸 Process waste: http://localhost:8000/process-waste")
+    print("🗺️ Locations: http://localhost:8000/locations")
     print("\n" + "=" * 50)
     
     # Import and run the Flask app
     from app import app
-    app.run(host='0.0.0.0', port=8000, debug=True)
+    # Disable debug mode and auto-reload to prevent interruptions during YOLO processing
+    app.run(host='0.0.0.0', port=8000, debug=False, use_reloader=False)
 
 if __name__ == "__main__":
     main()
