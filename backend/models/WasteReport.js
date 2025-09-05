@@ -1,122 +1,172 @@
-const mongoose = require('mongoose');
+const { DataTypes } = require('sequelize');
+const { sequelize } = require('../config/database');
 
-const wasteReportSchema = new mongoose.Schema({
+const WasteReport = sequelize.define('WasteReport', {
+  id: {
+    type: DataTypes.UUID,
+    defaultValue: DataTypes.UUIDV4,
+    primaryKey: true
+  },
   reportId: {
-    type: String,
+    type: DataTypes.STRING,
     unique: true,
-    required: true
+    allowNull: false,
+    field: 'report_id'
   },
   citizenId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
-  },
-  location: {
-    type: {
-      type: String,
-      enum: ['Point'],
-      required: true
-    },
-    coordinates: {
-      type: [Number], // [longitude, latitude]
-      required: true
-    },
-    address: {
-      type: String,
-      required: true
-    },
-    landmark: String
-  },
-  originalImage: {
-    filename: String,
-    path: String,
-    size: Number,
-    mimetype: String
-  },
-  processedImage: {
-    filename: String,
-    path: String,
-    segmentedPath: String
-  },
-  wasteDetection: {
-    detectedObjects: [{
-      class: String,
-      confidence: Number,
-      boundingBox: {
-        x: Number,
-        y: Number,
-        width: Number,
-        height: Number
-      }
-    }],
-    totalWasteArea: Number, // in pixels
-    estimatedVolume: Number, // in cubic meters
-    wasteTypes: [String],
-    severityLevel: {
-      type: String,
-      enum: ['low', 'medium', 'high', 'critical'],
-      default: 'medium'
+    type: DataTypes.UUID,
+    allowNull: false,
+    field: 'citizen_id',
+    references: {
+      model: 'users',
+      key: 'id'
     }
+  },
+  // Location data
+  latitude: {
+    type: DataTypes.DECIMAL(10, 8),
+    allowNull: false
+  },
+  longitude: {
+    type: DataTypes.DECIMAL(11, 8),
+    allowNull: false
+  },
+  address: {
+    type: DataTypes.TEXT,
+    allowNull: false
+  },
+  landmark: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  // Image data
+  originalImageFilename: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    field: 'original_image_filename'
+  },
+  originalImagePath: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    field: 'original_image_path'
+  },
+  originalImageSize: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    field: 'original_image_size'
+  },
+  originalImageMimetype: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    field: 'original_image_mimetype'
+  },
+  processedImageFilename: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    field: 'processed_image_filename'
+  },
+  processedImagePath: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    field: 'processed_image_path'
+  },
+  segmentedImagePath: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    field: 'segmented_image_path'
+  },
+  // Waste detection data (stored as JSON)
+  detectedObjects: {
+    type: DataTypes.JSONB,
+    allowNull: true,
+    defaultValue: [],
+    field: 'detected_objects'
+  },
+  totalWasteArea: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    comment: 'Area in pixels',
+    field: 'total_waste_area'
+  },
+  estimatedVolume: {
+    type: DataTypes.DECIMAL(10, 3),
+    allowNull: true,
+    comment: 'Volume in cubic meters',
+    field: 'estimated_volume'
+  },
+  wasteTypes: {
+    type: DataTypes.ARRAY(DataTypes.STRING),
+    allowNull: true,
+    defaultValue: [],
+    field: 'waste_types'
+  },
+  severityLevel: {
+    type: DataTypes.ENUM('low', 'medium', 'high', 'critical'),
+    defaultValue: 'medium',
+    field: 'severity_level'
   },
   status: {
-    type: String,
-    enum: ['pending', 'in_progress', 'resolved', 'rejected'],
-    default: 'pending'
+    type: DataTypes.ENUM('pending', 'in_progress', 'resolved', 'rejected'),
+    defaultValue: 'pending'
   },
   priority: {
-    type: String,
-    enum: ['low', 'medium', 'high', 'urgent'],
-    default: 'medium'
+    type: DataTypes.ENUM('low', 'medium', 'high', 'urgent'),
+    defaultValue: 'medium'
   },
   assignedTo: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'
-  },
-  resolution: {
-    resolvedBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User'
-    },
-    resolvedAt: Date,
-    resolutionNotes: String,
-    beforeAfterImages: [String]
-  },
-  comments: [{
-    user: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User'
-    },
-    message: String,
-    timestamp: {
-      type: Date,
-      default: Date.now
+    type: DataTypes.UUID,
+    allowNull: true,
+    field: 'assigned_to',
+    references: {
+      model: 'users',
+      key: 'id'
     }
-  }],
+  },
+  // Resolution data (stored as JSON)
+  resolution: {
+    type: DataTypes.JSONB,
+    allowNull: true,
+    defaultValue: {}
+  },
+  // Comments (stored as JSON array)
+  comments: {
+    type: DataTypes.JSONB,
+    allowNull: true,
+    defaultValue: []
+  },
   isActive: {
-    type: Boolean,
-    default: true
+    type: DataTypes.BOOLEAN,
+    defaultValue: true,
+    field: 'is_active'
   }
 }, {
-  timestamps: true
+  tableName: 'waste_reports',
+  hooks: {
+    beforeCreate: (report) => {
+      if (!report.reportId) {
+        const timestamp = Date.now().toString(36);
+        const random = Math.random().toString(36).substr(2, 5);
+        report.reportId = `WR-${timestamp}-${random}`.toUpperCase();
+      }
+    }
+  },
+  indexes: [
+    {
+      fields: ['status', 'priority']
+    },
+    {
+      fields: ['citizen_id']
+    },
+    {
+      fields: ['assigned_to']
+    },
+    {
+      fields: ['created_at']
+    },
+    {
+      fields: ['latitude', 'longitude']
+    }
+  ]
 });
 
-// Create geospatial index for location-based queries
-wasteReportSchema.index({ location: '2dsphere' });
-
-// Index for faster queries
-wasteReportSchema.index({ status: 1, priority: 1 });
-wasteReportSchema.index({ citizenId: 1 });
-wasteReportSchema.index({ assignedTo: 1 });
-wasteReportSchema.index({ createdAt: -1 });
-
-// Generate unique report ID
-wasteReportSchema.pre('save', function(next) {
-  if (!this.reportId) {
-    const timestamp = Date.now().toString(36);
-    const random = Math.random().toString(36).substr(2, 5);
-    this.reportId = `WR-${timestamp}-${random}`.toUpperCase();
-  }
-  next();
-});
-
-module.exports = mongoose.model('WasteReport', wasteReportSchema);
+module.exports = WasteReport;

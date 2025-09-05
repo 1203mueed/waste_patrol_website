@@ -18,7 +18,7 @@ const authenticateToken = async (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret');
     
     // Get user from token
-    const user = await User.findById(decoded.userId).select('-password');
+    const user = await User.findByPk(decoded.userId);
     
     if (!user || !user.isActive) {
       return res.status(401).json({
@@ -29,7 +29,7 @@ const authenticateToken = async (req, res, next) => {
 
     // Add user info to request
     req.user = {
-      userId: user._id,
+      userId: user.id,
       email: user.email,
       role: user.role,
       name: user.name

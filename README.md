@@ -23,7 +23,7 @@ A comprehensive waste management platform that combines AI-powered waste detecti
 
 ### Backend (Node.js/Express)
 - RESTful API with JWT authentication
-- MongoDB database with geospatial indexing
+- PostgreSQL database with Sequelize ORM
 - File upload handling with Multer
 - Role-based access control
 
@@ -38,7 +38,7 @@ A comprehensive waste management platform that combines AI-powered waste detecti
 ### Prerequisites
 - **Node.js** 16+ and npm
 - **Python** 3.8+
-- **MongoDB** 8.0+ (automatically installed on Windows)
+- **PostgreSQL** 12+ (install from [postgresql.org](https://www.postgresql.org/download/))
 - **Git**
 
 ### 🎯 One-Command Start (Windows)
@@ -61,26 +61,37 @@ cd backend && npm install && cd ..
 cd python_service && pip install -r requirements.txt && cd ..
 ```
 
-**2. Configure Environment**
+**2. Setup PostgreSQL Database**
+```bash
+# Connect to PostgreSQL as superuser
+psql -U postgres
+
+# Create database and set password
+CREATE DATABASE waste_patrol;
+ALTER USER postgres PASSWORD 'waste_patrol';
+\q
+```
+
+**3. Configure Environment**
 ```bash
 cd backend
 cp env.example .env
-# MongoDB is automatically configured!
+# Database is already configured with password: waste_patrol
 ```
 
-**3. Start All Services**
+**4. Start All Services**
 ```bash
 # Terminal 1 - Backend (port 5000)
 cd backend && npm run dev
 
 # Terminal 2 - Python AI (port 8000)  
-cd python_service && python run.py
+cd python_service && python app.py
 
 # Terminal 3 - Frontend (port 3000)
 npm start
 ```
 
-**4. Access the Application**
+**5. Access the Application**
 - **Frontend**: http://localhost:3000
 - **Public Heatmap**: http://localhost:3000/heatmap (no login required!)
 - **Backend API**: http://localhost:5000
@@ -134,7 +145,11 @@ waste-patrol/
 ### Backend Environment Variables (.env)
 ```env
 PORT=5000
-MONGODB_URI=mongodb://localhost:27017/waste_patrol
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=waste_patrol
+DB_USER=postgres
+DB_PASSWORD=waste_patrol
 JWT_SECRET=your-super-secret-key
 PYTHON_SERVICE_URL=http://localhost:8000
 MAX_FILE_SIZE=10485760

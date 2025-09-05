@@ -91,7 +91,7 @@ export function AuthProvider({ children }) {
       (response) => response,
       (error) => {
         if (error.response?.status === 401) {
-          logout();
+          logout(false); // Don't show logout message for 401 errors
           toast.error('Session expired. Please login again.');
         }
         return Promise.reject(error);
@@ -111,7 +111,7 @@ export function AuthProvider({ children }) {
       });
     } catch (error) {
       console.error('Token verification failed:', error);
-      logout();
+      logout(false); // Don't show logout message for token verification failures
     }
   };
 
@@ -185,7 +185,7 @@ export function AuthProvider({ children }) {
   };
 
   // Logout function
-  const logout = () => {
+  const logout = (showMessage = true) => {
     // Remove token from localStorage
     localStorage.removeItem('waste_patrol_token');
     
@@ -193,7 +193,9 @@ export function AuthProvider({ children }) {
     delete axios.defaults.headers.common['Authorization'];
 
     dispatch({ type: ActionTypes.LOGOUT });
-    toast.success('Logged out successfully', { duration: 1500 }); // Reduced duration to 1.5 seconds
+    if (showMessage) {
+      toast.success('Logged out successfully', { duration: 1500 }); // Reduced duration to 1.5 seconds
+    }
   };
 
   // Clear error function

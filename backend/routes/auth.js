@@ -33,7 +33,7 @@ router.post('/register', [
     const { name, email, password, role, phone, address } = req.body;
 
     // Check if user already exists
-    const existingUser = await User.findOne({ email });
+    const existingUser = await User.findOne({ where: { email } });
     if (existingUser) {
       return res.status(400).json({
         success: false,
@@ -42,7 +42,7 @@ router.post('/register', [
     }
 
     // Create new user
-    const user = new User({
+    const user = await User.create({
       name,
       email,
       password,
@@ -51,17 +51,15 @@ router.post('/register', [
       address
     });
 
-    await user.save();
-
     // Generate token
-    const token = generateToken(user._id);
+    const token = generateToken(user.id);
 
     res.status(201).json({
       success: true,
       message: 'User registered successfully',
       token,
       user: {
-        id: user._id,
+        id: user.id,
         name: user.name,
         email: user.email,
         role: user.role
@@ -95,8 +93,8 @@ router.post('/login', [
 
     const { email, password } = req.body;
 
-    // Find user and include password for comparison
-    const user = await User.findOne({ email, isActive: true }).select('+password');
+    // Find user
+    const user = await User.findOne({ where: { email, isActive: true } });
     if (!user) {
       return res.status(401).json({
         success: false,
@@ -118,14 +116,14 @@ router.post('/login', [
     await user.save();
 
     // Generate token
-    const token = generateToken(user._id);
+    const token = generateToken(user.id);
 
     res.json({
       success: true,
       message: 'Login successful',
       token,
       user: {
-        id: user._id,
+        id: user.id,
         name: user.name,
         email: user.email,
         role: user.role
@@ -154,7 +152,7 @@ router.get('/profile', async (req, res) => {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret');
-    const user = await User.findById(decoded.userId);
+    const user = await User.findByPk(decoded.userId);
     
     if (!user || !user.isActive) {
       return res.status(401).json({
@@ -165,7 +163,13 @@ router.get('/profile', async (req, res) => {
 
     res.json({
       success: true,
-      user
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        userId: user.id  // Add userId for compatibility
+      }
     });
   } catch (error) {
     console.error('Profile fetch error:', error);

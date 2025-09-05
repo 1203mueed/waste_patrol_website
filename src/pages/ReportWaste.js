@@ -214,7 +214,16 @@ function ReportWaste() {
 
       if (response.data.success) {
         toast.success('Waste report submitted successfully!');
-        navigate(`/reports/${response.data.report._id}`);
+        console.log('📊 Report creation response:', response.data);
+        const reportId = response.data.report.id || response.data.report._id;
+        console.log('📊 Extracted report ID:', reportId);
+        if (reportId) {
+          navigate(`/reports/${reportId}`);
+        } else {
+          console.error('No report ID in response:', response.data);
+          toast.error('Report created but could not navigate to details');
+          navigate('/dashboard');
+        }
       }
     } catch (error) {
       console.error('Report submission error:', error);
@@ -383,7 +392,7 @@ function ReportWaste() {
                 <Box sx={{ mt: 2 }}>
                   <Chip
                     icon={<LocationOn />}
-                    label={`Lat: ${position[0].toFixed(6)}, Lng: ${position[1].toFixed(6)}`}
+                    label={`Lat: ${(position[0] || 0).toFixed(6)}, Lng: ${(position[1] || 0).toFixed(6)}`}
                     variant="outlined"
                     size="small"
                   />

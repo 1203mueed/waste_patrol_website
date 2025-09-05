@@ -66,7 +66,7 @@ function AuthorityDashboard() {
     try {
       console.log('Calculating stats from reports...');
       const response = await axios.get('/api/reports');
-      const allReports = response.data.reports;
+      const allReports = response.data.reports || [];
       
       const stats = {
         total: allReports.length,
@@ -80,7 +80,14 @@ function AuthorityDashboard() {
       console.log('Stats calculated from reports:', stats);
     } catch (error) {
       console.error('Error calculating stats from reports:', error);
-      toast.error('Failed to calculate dashboard stats');
+      // Set empty stats instead of showing error toast
+      setStats({
+        total: 0,
+        pending: 0,
+        inProgress: 0,
+        resolved: 0,
+        urgent: 0
+      });
     }
   }, []);
 
@@ -96,21 +103,22 @@ function AuthorityDashboard() {
           params.append('limit', '20');
 
           const response = await axios.get(`/api/reports?${params}`);
-          let filteredReports = response.data.reports;
+          let filteredReports = response.data.reports || [];
 
           // Client-side search filter
           if (filters.search) {
             filteredReports = filteredReports.filter(report =>
               report.reportId.toLowerCase().includes(filters.search.toLowerCase()) ||
               report.location.address.toLowerCase().includes(filters.search.toLowerCase()) ||
-              report.citizenId?.name?.toLowerCase().includes(filters.search.toLowerCase())
+              report.citizen?.name?.toLowerCase().includes(filters.search.toLowerCase())
             );
           }
 
           setReports(filteredReports);
         } catch (error) {
           console.error('Error fetching reports:', error);
-          throw error;
+          // Set empty array instead of throwing error
+          setReports([]);
         }
       };
 
@@ -481,10 +489,10 @@ function AuthorityDashboard() {
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2">
-                        {report.citizenId?.name || 'Unknown'}
+                        {report.citizen?.name || 'Unknown'}
                       </Typography>
                       <Typography variant="caption" color="text.secondary">
-                        {report.citizenId?.email}
+                        {report.citizen?.email || 'No email'}
                       </Typography>
                     </TableCell>
                     <TableCell>
@@ -512,7 +520,11 @@ function AuthorityDashboard() {
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                        {report.wasteDetection?.estimatedVolume?.toFixed(2) || '0.00'}
+                        {(() => {
+                          const volume = report.wasteDetection?.estimatedVolume;
+                          const numVolume = typeof volume === 'number' ? volume : parseFloat(volume) || 0;
+                          return numVolume.toFixed(2);
+                        })()}
                       </Typography>
                     </TableCell>
                     <TableCell>

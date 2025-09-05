@@ -59,17 +59,21 @@ function CitizenDashboard() {
   const fetchReports = async () => {
     try {
       const response = await axios.get('/api/reports?limit=10');
-      setReports(response.data.reports);
+      setReports(response.data.reports || []);
     } catch (error) {
       console.error('Error fetching reports:', error);
-      toast.error('Failed to load reports');
+      // Don't show error toast for empty data, just set empty array
+      setReports([]);
+      if (error.response?.status !== 404) {
+        toast.error('Failed to load reports');
+      }
     }
   };
 
   const fetchStats = async () => {
     try {
       const response = await axios.get('/api/reports');
-      const allReports = response.data.reports;
+      const allReports = response.data.reports || [];
       
       const stats = {
         total: allReports.length,
@@ -81,6 +85,13 @@ function CitizenDashboard() {
       setStats(stats);
     } catch (error) {
       console.error('Error fetching stats:', error);
+      // Set empty stats if API fails
+      setStats({
+        total: 0,
+        pending: 0,
+        inProgress: 0,
+        resolved: 0
+      });
     } finally {
       setLoading(false);
     }

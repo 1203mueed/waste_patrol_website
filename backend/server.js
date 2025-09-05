@@ -1,11 +1,13 @@
 const express = require('express');
-const mongoose = require('mongoose');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
 require('dotenv').config();
+
+const { sequelize, testConnection } = require('./config/database');
+const { User, WasteReport, Location } = require('./models');
 
 const app = express();
 
@@ -36,16 +38,19 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 // Static files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Database connection
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/waste_patrol', {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-})
-.then(() => console.log('✅ MongoDB connected successfully'))
-.catch(err => {
-  console.error('❌ MongoDB connection error:', err);
-  process.exit(1);
-});
+// Database connection and synchronization
+const initializeDatabase = async () => {
+  try {
+    await testConnection();
+    await sequelize.sync({ alter: true }); // This will create/update tables
+    console.log('✅ PostgreSQL database synchronized successfully');
+  } catch (error) {
+    console.error('❌ Database initialization error:', error);
+    process.exit(1);
+  }
+};
+
+initializeDatabase();
 
 // Routes
 app.use('/api/auth', require('./routes/auth'));

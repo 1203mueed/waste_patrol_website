@@ -1,6 +1,5 @@
 const express = require('express');
-const WasteReport = require('../models/WasteReport');
-const User = require('../models/User');
+const { WasteReport, User } = require('../models');
 const { authenticateToken, requireAuthority } = require('../middleware/auth');
 const router = express.Router();
 
@@ -39,103 +38,88 @@ router.get('/stats', authenticateToken, requireAuthority, async (req, res) => {
       totalCitizens,
       totalAuthorities
     ] = await Promise.all([
-      WasteReport.countDocuments({ isActive: true }),
-      WasteReport.countDocuments({ 
-        status: 'pending',
-        isActive: true
+      WasteReport.count({ where: { isActive: true } }),
+      WasteReport.count({ 
+        where: { 
+          status: 'pending',
+          isActive: true
+        }
       }),
-      WasteReport.countDocuments({ 
-        status: 'in_progress',
-        isActive: true
+      WasteReport.count({ 
+        where: { 
+          status: 'in_progress',
+          isActive: true
+        }
       }),
-      WasteReport.countDocuments({ 
-        status: 'resolved',
-        isActive: true
+      WasteReport.count({ 
+        where: { 
+          status: 'resolved',
+          isActive: true
+        }
       }),
-      User.countDocuments({ role: 'citizen', isActive: true }),
-      User.countDocuments({ role: 'authority', isActive: true })
+      User.count({ where: { role: 'citizen', isActive: true } }),
+      User.count({ where: { role: 'authority', isActive: true } })
     ]);
 
     // Get priority distribution for all active reports
-    const priorityStats = await WasteReport.aggregate([
-      {
-        $match: { isActive: true }
-      },
-      {
-        $group: {
-          _id: '$priority',
-          count: { $sum: 1 }
-        }
-      }
-    ]);
+    const priorityStats = await WasteReport.findAll({
+      where: { isActive: true },
+      attributes: [
+        'priority',
+        [require('sequelize').fn('COUNT', require('sequelize').col('priority')), 'count']
+      ],
+      group: ['priority'],
+      raw: true
+    });
 
     // Get daily report trends within timeframe
-    const dailyTrends = await WasteReport.aggregate([
-      {
-        $match: {
-          isActive: true,
-          createdAt: { $gte: startDate }
-        }
+    const dailyTrends = await WasteReport.findAll({
+      where: {
+        isActive: true,
+        createdAt: { [require('sequelize').Op.gte]: startDate }
       },
-      {
-        $group: {
-          _id: {
-            $dateToString: { format: '%Y-%m-%d', date: '$createdAt' }
-          },
-          count: { $sum: 1 },
-          resolved: {
-            $sum: {
-              $cond: [{ $eq: ['$status', 'resolved'] }, 1, 0]
-            }
-          }
-        }
-      },
-      {
-        $sort: { '_id': 1 }
-      }
-    ]);
+      attributes: [
+        [require('sequelize').fn('DATE', require('sequelize').col('createdAt')), 'date'],
+        [require('sequelize').fn('COUNT', require('sequelize').col('id')), 'count'],
+        [require('sequelize').fn('SUM', 
+          require('sequelize').literal("CASE WHEN status = 'resolved' THEN 1 ELSE 0 END")
+        ), 'resolved']
+      ],
+      group: [require('sequelize').fn('DATE', require('sequelize').col('createdAt'))],
+      order: [[require('sequelize').fn('DATE', require('sequelize').col('createdAt')), 'ASC']],
+      raw: true
+    });
 
     // Get waste volume statistics for all active reports
-    const volumeStats = await WasteReport.aggregate([
-      {
-        $match: { isActive: true }
+    const volumeStats = await WasteReport.findAll({
+      where: {
+        isActive: true,
+        totalWasteArea: { [require('sequelize').Op.gt]: 0 }
       },
-      {
-        $match: { 'wasteDetection.totalWasteArea': { $gt: 0 } }
-      },
-      {
-        $group: {
-          _id: null,
-          totalVolume: { $sum: '$wasteDetection.estimatedVolume' },
-          avgVolume: { $avg: '$wasteDetection.estimatedVolume' },
-          maxVolume: { $max: '$wasteDetection.estimatedVolume' }
-        }
-      }
-    ]);
+      attributes: [
+        [require('sequelize').fn('SUM', require('sequelize').col('estimatedVolume')), 'totalVolume'],
+        [require('sequelize').fn('AVG', require('sequelize').col('estimatedVolume')), 'avgVolume'],
+        [require('sequelize').fn('MAX', require('sequelize').col('estimatedVolume')), 'maxVolume']
+      ],
+      raw: true
+    });
 
     // Get top locations by report count for all active reports
-    const topLocations = await WasteReport.aggregate([
-      {
-        $match: { isActive: true }
+    const topLocations = await WasteReport.findAll({
+      where: {
+        isActive: true,
+        totalWasteArea: { [require('sequelize').Op.gt]: 0 }
       },
-      {
-        $match: { 'wasteDetection.totalWasteArea': { $gt: 0 } }
-      },
-      {
-        $group: {
-          _id: '$location.address',
-          count: { $sum: 1 },
-          avgVolume: { $avg: '$wasteDetection.estimatedVolume' },
-          location: { $first: '$location' }
-        }
-      },
-      {
-        $sort: { count: -1 }
-      },
-      {
-        $limit: 10
-      }
-    ]);
+      attributes: [
+        'address',
+        [require('sequelize').fn('COUNT', require('sequelize').col('id')), 'count'],
+        [require('sequelize').fn('AVG', require('sequelize').col('estimatedVolume')), 'avgVolume']
+      ],
+      group: ['address'],
+      order: [[require('sequelize').fn('COUNT', require('sequelize').col('id')), 'DESC']],
+      limit: 10,
+      raw: true
+    });
 
     res.json({
       success: true,
@@ -177,46 +161,42 @@ router.get('/heatmap', authenticateToken, requireAuthority, async (req, res) => 
     } = req.query;
 
     // Build query
-    let query = { isActive: true };
+    let whereClause = { isActive: true };
     
     if (status !== 'all') {
-      query.status = status;
+      whereClause.status = status;
     }
     
     if (priority !== 'all') {
-      query.priority = priority;
+      whereClause.priority = priority;
     }
 
     // Add geographical bounds filter
     if (bounds) {
       const [swLat, swLng, neLat, neLng] = bounds.split(',').map(parseFloat);
-      query.location = {
-        $geoWithin: {
-          $box: [
-            [swLng, swLat], // Southwest corner
-            [neLng, neLat]  // Northeast corner
-          ]
-        }
+      whereClause.latitude = {
+        [require('sequelize').Op.between]: [swLat, neLat]
+      };
+      whereClause.longitude = {
+        [require('sequelize').Op.between]: [swLng, neLng]
       };
     }
 
     // Get reports with location and volume data
-    const heatmapData = await WasteReport.find(query, {
-      'location.coordinates': 1,
-      'wasteDetection.estimatedVolume': 1,
-      'wasteDetection.severityLevel': 1,
-      'priority': 1,
-      'status': 1,
-      'reportId': 1,
-      'createdAt': 1
+    const heatmapData = await WasteReport.findAll({
+      where: whereClause,
+      attributes: [
+        'latitude', 'longitude', 'estimatedVolume', 'severityLevel', 
+        'priority', 'status', 'reportId', 'createdAt', 'totalWasteArea'
+      ]
     });
 
     // Transform data for heatmap
     const heatmapPoints = heatmapData.map(report => ({
-      lat: report.location.coordinates[1],
-      lng: report.location.coordinates[0],
-      weight: report.wasteDetection.totalWasteArea > 0 ? (report.wasteDetection.estimatedVolume || 1) : 0.1,
-      intensity: getSeverityIntensity(report.wasteDetection.severityLevel),
+      lat: report.latitude,
+      lng: report.longitude,
+      weight: report.totalWasteArea > 0 ? (report.estimatedVolume || 1) : 0.1,
+      intensity: getSeverityIntensity(report.severityLevel),
       reportId: report.reportId,
       priority: report.priority,
       status: report.status,
@@ -248,35 +228,46 @@ router.get('/recent-activity', authenticateToken, requireAuthority, async (req, 
     const { limit = 20 } = req.query;
 
     // Get recent reports with citizen and assigned authority info
-    const recentReports = await WasteReport.find({ isActive: true })
-      .populate('citizenId', 'name email')
-      .populate('assignedTo', 'name email')
-      .populate('resolution.resolvedBy', 'name email')
-      .sort({ updatedAt: -1 })
-      .limit(parseInt(limit));
+    const recentReports = await WasteReport.findAll({
+      where: { isActive: true },
+      include: [
+        {
+          model: User,
+          as: 'citizen',
+          attributes: ['name', 'email']
+        },
+        {
+          model: User,
+          as: 'assignedUser',
+          attributes: ['name', 'email']
+        }
+      ],
+      order: [['updatedAt', 'DESC']],
+      limit: parseInt(limit)
+    });
 
     // Transform into activity feed format
     const activities = recentReports.map(report => {
       let activityType = 'report_created';
-      let description = `New waste report created by ${report.citizenId?.name || 'Unknown'}`;
+      let description = `New waste report created by ${report.citizen?.name || 'Unknown'}`;
       
       if (report.status === 'resolved') {
         activityType = 'report_resolved';
-        description = `Waste report resolved by ${report.resolution.resolvedBy?.name || 'Authority'}`;
+        description = `Waste report resolved by ${report.resolution?.resolvedBy?.name || 'Authority'}`;
       } else if (report.status === 'in_progress') {
         activityType = 'report_assigned';
         description = `Waste report assigned to ${report.assignedTo?.name || 'Authority'}`;
       }
 
       return {
-        id: report._id,
+        id: report.id,
         reportId: report.reportId,
         type: activityType,
         description,
         timestamp: report.updatedAt,
         priority: report.priority,
-        location: report.location.address,
-        user: report.citizenId?.name || 'Unknown'
+        location: report.address,
+        user: report.citizen?.name || 'Unknown'
       };
     });
 

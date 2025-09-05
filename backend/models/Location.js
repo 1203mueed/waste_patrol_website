@@ -1,90 +1,94 @@
-const mongoose = require('mongoose');
+const { DataTypes } = require('sequelize');
+const { sequelize } = require('../config/database');
 
-const locationSchema = new mongoose.Schema({
+const Location = sequelize.define('Location', {
+  id: {
+    type: DataTypes.UUID,
+    defaultValue: DataTypes.UUIDV4,
+    primaryKey: true
+  },
   name: {
-    type: String,
-    required: true,
-    trim: true
+    type: DataTypes.STRING,
+    allowNull: false,
+    validate: {
+      notEmpty: true,
+      len: [1, 100]
+    }
   },
   type: {
-    type: String,
-    enum: ['residential', 'commercial', 'industrial', 'public', 'park', 'street'],
-    required: true
+    type: DataTypes.ENUM('residential', 'commercial', 'industrial', 'public', 'park', 'street'),
+    allowNull: false
   },
-  coordinates: {
-    type: {
-      type: String,
-      enum: ['Point'],
-      required: true
-    },
-    coordinates: {
-      type: [Number], // [longitude, latitude]
-      required: true
-    }
+  // Location coordinates
+  latitude: {
+    type: DataTypes.DECIMAL(10, 8),
+    allowNull: false
   },
+  longitude: {
+    type: DataTypes.DECIMAL(11, 8),
+    allowNull: false
+  },
+  // Address data (stored as JSON)
   address: {
-    street: String,
-    area: String,
-    city: String,
-    state: String,
-    zipCode: String,
-    country: {
-      type: String,
-      default: 'Bangladesh'
+    type: DataTypes.JSONB,
+    allowNull: true,
+    defaultValue: {
+      street: null,
+      area: null,
+      city: null,
+      state: null,
+      zipCode: null,
+      country: 'Bangladesh'
     }
   },
+  // Boundaries data (stored as JSON)
   boundaries: {
-    type: {
-      type: String,
-      enum: ['Polygon'],
-    },
-    coordinates: {
-      type: [[[Number]]] // Array of linear ring coordinate arrays
-    }
+    type: DataTypes.JSONB,
+    allowNull: true
   },
+  // Waste collection schedule (stored as JSON)
   wasteCollectionSchedule: {
-    frequency: {
-      type: String,
-      enum: ['daily', 'weekly', 'bi-weekly', 'monthly'],
-      default: 'weekly'
+    type: DataTypes.JSONB,
+    allowNull: true,
+    defaultValue: {
+      frequency: 'weekly',
+      days: [],
+      time: null,
+      lastCollection: null,
+      nextCollection: null
     },
-    days: [String], // ['monday', 'wednesday', 'friday']
-    time: String, // '08:00'
-    lastCollection: Date,
-    nextCollection: Date
+    field: 'waste_collection_schedule'
   },
+  // Statistics (stored as JSON)
   statistics: {
-    totalReports: {
-      type: Number,
-      default: 0
-    },
-    resolvedReports: {
-      type: Number,
-      default: 0
-    },
-    averageResolutionTime: Number, // in hours
-    lastReportDate: Date,
-    riskLevel: {
-      type: String,
-      enum: ['low', 'medium', 'high'],
-      default: 'low'
+    type: DataTypes.JSONB,
+    allowNull: true,
+    defaultValue: {
+      totalReports: 0,
+      resolvedReports: 0,
+      averageResolutionTime: null,
+      lastReportDate: null,
+      riskLevel: 'low'
     }
   },
   isActive: {
-    type: Boolean,
-    default: true
+    type: DataTypes.BOOLEAN,
+    defaultValue: true,
+    field: 'is_active'
   }
 }, {
-  timestamps: true
+  tableName: 'locations',
+  indexes: [
+    {
+      fields: ['type']
+    },
+    {
+      fields: ['latitude', 'longitude']
+    },
+    {
+      fields: ['is_active']
+    }
+  ]
 });
 
-// Create geospatial indexes
-locationSchema.index({ coordinates: '2dsphere' });
-locationSchema.index({ boundaries: '2dsphere' });
-
-// Index for faster queries
-locationSchema.index({ type: 1 });
-locationSchema.index({ 'address.city': 1 });
-locationSchema.index({ 'statistics.riskLevel': 1 });
-
-module.exports = mongoose.model('Location', locationSchema);
+module.exports = Location;

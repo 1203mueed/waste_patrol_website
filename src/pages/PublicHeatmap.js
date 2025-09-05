@@ -47,73 +47,15 @@ const PublicHeatmap = () => {
     try {
       setLoading(true);
       console.log('🔄 Fetching reports from API...');
-      const response = await axios.get('http://localhost:5000/api/reports/public');
-      const newReports = response.data;
+      const response = await axios.get('/api/reports/public');
+      const newReports = response.data || [];
       
       console.log('📊 API returned:', newReports.length, 'reports');
       setReports(newReports);
     } catch (error) {
       console.error('Error fetching public reports:', error);
-      // Use mock data for demo
-      setReports([
-        {
-          _id: '1',
-          reportId: 'WR-1756541026270-ABC123',
-          location: { coordinates: [90.4066, 23.7937] },
-          wasteDetection: {
-            totalWasteArea: 15000,
-            estimatedVolume: 1.5,
-            wasteTypes: ['plastic', 'paper'],
-            severityLevel: 'medium'
-          },
-          status: 'pending',
-          priority: 'medium',
-          createdAt: new Date().toISOString(),
-          originalImage: {
-            filename: 'wasteImage-1756541026270-84891506.jpg'
-          },
-          processedImage: {
-            filename: 'processed_wasteImage-1756541026270-84891506.jpg'
-          }
-        },
-        {
-          _id: '2',
-          reportId: 'WR-1756541117563-DEF456',
-          location: { coordinates: [90.4066, 23.7937] },
-          wasteDetection: {
-            totalWasteArea: 30000,
-            estimatedVolume: 3.0,
-            wasteTypes: ['organic', 'plastic'],
-            severityLevel: 'high'
-          },
-          status: 'pending',
-          priority: 'high',
-          createdAt: new Date().toISOString(),
-          originalImage: {
-            filename: 'wasteImage-1756541117563-132291603.jpg'
-          },
-          processedImage: {
-            filename: 'processed_wasteImage-1756541117563-132291603.jpg'
-          }
-        },
-        {
-          _id: '3',
-          reportId: 'WR-1756542603496-GHI789',
-          location: { coordinates: [90.4066, 23.7937] },
-          wasteDetection: {
-            totalWasteArea: 0,
-            estimatedVolume: 0.0,
-            wasteTypes: [],
-            severityLevel: 'low'
-          },
-          status: 'pending',
-          priority: 'low',
-          createdAt: new Date().toISOString(),
-          originalImage: {
-            filename: 'wasteImage-1756542603496-833079703.jpg'
-          }
-        }
-      ]);
+      // Set empty array instead of mock data
+      setReports([]);
     } finally {
       setLoading(false);
     }
@@ -156,6 +98,8 @@ const PublicHeatmap = () => {
     );
   }
 
+  // Always show the map, even with no reports
+
   return (
     <Container maxWidth="lg" sx={{ mt: 4 }}>
       <Typography variant="h4" gutterBottom color="primary" sx={{ mb: 3 }}>
@@ -181,6 +125,21 @@ const PublicHeatmap = () => {
         </Grid>
         
         <Grid item xs={12} md={4}>
+          {/* No Reports Message */}
+          {reports.length === 0 && (
+            <Paper elevation={3} sx={{ p: 2, mb: 2, textAlign: 'center' }}>
+              <Typography variant="h6" gutterBottom color="text.secondary">
+                📍 No Reports Yet
+              </Typography>
+              <Typography variant="body2" color="text.secondary" paragraph>
+                The heatmap will show waste reports once citizens start reporting issues in your area.
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Be the first to help keep your city clean by reporting waste!
+              </Typography>
+            </Paper>
+          )}
+
           {/* Heatmap Legend */}
           <Paper elevation={3} sx={{ p: 2, mb: 2 }}>
             <Typography variant="h6" gutterBottom>🎨 Intensity Scale</Typography>
@@ -236,7 +195,18 @@ const PublicHeatmap = () => {
             <Box sx={{ mb: 2 }}>
               <Typography variant="body2" color="text.secondary">Total Volume</Typography>
               <Typography variant="h6" color="primary" sx={{ fontWeight: 600 }}>
-                {reports.reduce((sum, r) => sum + (r.wasteDetection?.totalWasteArea > 0 ? (r.wasteDetection?.estimatedVolume || 0) : 0), 0).toFixed(2)} m³
+                {(() => {
+                  if (reports.length === 0) return '0.00 m³';
+                  const totalVolume = reports.reduce((sum, r) => {
+                    if (r.wasteDetection?.totalWasteArea > 0) {
+                      const volume = r.wasteDetection?.estimatedVolume;
+                      const numVolume = typeof volume === 'number' ? volume : parseFloat(volume) || 0;
+                      return sum + numVolume;
+                    }
+                    return sum;
+                  }, 0);
+                  return totalVolume.toFixed(2) + ' m³';
+                })()}
               </Typography>
             </Box>
           </Paper>
@@ -255,10 +225,14 @@ const PublicHeatmap = () => {
                   <CardContent sx={{ py: 1.5, '&:last-child': { pb: 1.5 } }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
                       <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                        {report.wasteDetection?.totalWasteArea > 0 
-                          ? `${report.wasteDetection?.estimatedVolume?.toFixed(2) || '0.00'} m³`
-                          : 'No waste detected'
-                        }
+                        {(() => {
+                          if (report.wasteDetection?.totalWasteArea > 0) {
+                            const volume = report.wasteDetection?.estimatedVolume;
+                            const numVolume = typeof volume === 'number' ? volume : parseFloat(volume) || 0;
+                            return `${numVolume.toFixed(2)} m³`;
+                          }
+                          return 'No waste detected';
+                        })()}
                       </Typography>
                       <Typography variant="caption" color="text.secondary">
                         {new Date(report.createdAt).toLocaleDateString()}

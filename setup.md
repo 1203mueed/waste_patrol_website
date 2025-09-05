@@ -10,7 +10,7 @@ Make sure you have the following installed:
 
 - **Node.js** (v16 or higher) - [Download here](https://nodejs.org/)
 - **Python** (v3.8 or higher) - [Download here](https://python.org/)
-- **MongoDB** (v8.0 or higher) - **Automatically installed via winget!**
+- **PostgreSQL** (v12 or higher) - [Download here](https://www.postgresql.org/download/)
 - **Git** - [Download here](https://git-scm.com/)
 
 ## 🚀 Quick Start (Windows)
@@ -54,21 +54,23 @@ cd ..
 
 ### Step 3: Setup Database
 
-**✅ MongoDB is automatically installed and running!** The system will automatically connect to the local MongoDB instance.
+**PostgreSQL Setup:**
+1. Install PostgreSQL from [postgresql.org](https://www.postgresql.org/download/)
+2. Create a database named `waste_patrol`
+3. Update your `.env` file with PostgreSQL credentials
 
-**If you need to manually start MongoDB:**
-```bash
-# Windows (usually not needed - already running)
-net start MongoDB
+**Create Database:**
+```sql
+-- Connect to PostgreSQL as superuser
+psql -U postgres
 
-# macOS (with Homebrew)
-brew services start mongodb/brew/mongodb-community
-
-# Ubuntu/Debian
-sudo systemctl start mongod
+-- Create database and set password
+CREATE DATABASE waste_patrol;
+ALTER USER postgres PASSWORD 'waste_patrol';
+\q
 ```
 
-**Database Status:** ✅ Connected and ready
+**Database Status:** ✅ Ready for configuration
 
 ### Step 4: Configure Environment
 
@@ -84,7 +86,11 @@ Your `.env` file contains:
 ```env
 PORT=5000
 NODE_ENV=development
-MONGODB_URI=mongodb://localhost:27017/waste_patrol
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=waste_patrol
+DB_USER=postgres
+DB_PASSWORD=waste_patrol
 JWT_SECRET=your-super-secret-key-change-this
 JWT_EXPIRE=7d
 MAX_FILE_SIZE=10485760
@@ -108,7 +114,7 @@ npm run dev
 **Terminal 2 - Python AI Service:**
 ```bash
 cd python_service
-python run.py
+python app.py
 ```
 **Status:** ✅ Ready to start
 
@@ -154,18 +160,17 @@ npm start
 
 ## 🔧 Detailed Setup
 
-### MongoDB Setup
+### PostgreSQL Setup
 
 **✅ Option 1: Local Installation (Recommended)**
-1. MongoDB 8.0.13 automatically installed via winget
-2. Service automatically running
-3. Database automatically created on first connection
+1. Download and install PostgreSQL from [postgresql.org](https://www.postgresql.org/download/)
+2. Create database and user as shown above
+3. Update database credentials in your `.env` file
 
-**Option 2: MongoDB Atlas (Cloud)**
-1. Create a free account at [MongoDB Atlas](https://www.mongodb.com/atlas)
-2. Create a new cluster
-3. Get your connection string
-4. Update `MONGODB_URI` in your `.env` file
+**Option 2: PostgreSQL Cloud (Heroku, AWS RDS, etc.)**
+1. Create a PostgreSQL instance on your preferred cloud provider
+2. Get your connection string
+3. Update database credentials in your `.env` file
 
 ### YOLO Model Setup
 
@@ -185,7 +190,11 @@ ls -la train5_11.pt
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `PORT` | Backend server port | 5000 |
-| `MONGODB_URI` | MongoDB connection string | mongodb://localhost:27017/waste_patrol |
+| `DB_HOST` | PostgreSQL host | localhost |
+| `DB_PORT` | PostgreSQL port | 5432 |
+| `DB_NAME` | Database name | waste_patrol |
+| `DB_USER` | Database user | postgres |
+| `DB_PASSWORD` | Database password | (required) |
 | `JWT_SECRET` | Secret key for JWT tokens | (required) |
 | `PYTHON_SERVICE_URL` | Python AI service URL | http://localhost:8000 |
 | `MAX_FILE_SIZE` | Maximum upload file size | 10MB |
@@ -255,17 +264,20 @@ Once all services are running, test:
 
 ### Common Issues
 
-**1. MongoDB Connection Error**
+**1. PostgreSQL Connection Error**
 ```
-Error: connect ECONNREFUSED 127.0.0.1:27017
+Error: connect ECONNREFUSED 127.0.0.1:5432
 ```
-**Solution:** MongoDB should be running automatically. If not:
+**Solution:** Make sure PostgreSQL is running and configured:
 ```bash
-# Check if MongoDB is running
-Get-Service | Where-Object {$_.Name -like "*MongoDB*"}
+# Check if PostgreSQL is running (Windows)
+Get-Service | Where-Object {$_.Name -like "*postgresql*"}
 
-# Start MongoDB if not running
-net start MongoDB
+# Start PostgreSQL if not running
+net start postgresql-x64-14
+
+# Test connection
+psql -U postgres -h localhost -p 5432
 ```
 
 **2. Python Dependencies Error**

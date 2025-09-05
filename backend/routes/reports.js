@@ -3,8 +3,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const { body, validationResult } = require('express-validator');
-const WasteReport = require('../models/WasteReport');
-const User = require('../models/User');
+const { WasteReport, User } = require('../models');
 const { authenticateToken } = require('../middleware/auth');
 const { processImageWithYOLO } = require('../services/yoloService');
 const router = express.Router();
@@ -15,22 +14,56 @@ const router = express.Router();
 router.get('/public', async (req, res) => {
   try {
     // Debug: Check all reports first
-    const allReports = await WasteReport.find({ status: { $ne: 'resolved' } });
+    const allReports = await WasteReport.findAll({ 
+      where: { status: { [require('sequelize').Op.ne]: 'resolved' } }
+    });
     console.log('🔍 All non-resolved reports:', allReports.length);
     console.log('🔍 Reports with isActive=false:', allReports.filter(r => !r.isActive).length);
     console.log('🔍 Reports with isActive=true:', allReports.filter(r => r.isActive).length);
     
-    const reports = await WasteReport.find({ 
-      status: { $ne: 'resolved' },
-      isActive: true  // Only show active (non-deleted) reports
-    })
-      .populate('citizenId', 'name')
-      .select('location wasteDetection status createdAt originalImage processedImage reportId priority')
-      .sort({ createdAt: -1 })
-      .limit(100);
+    const reports = await WasteReport.findAll({ 
+      where: { 
+        status: { [require('sequelize').Op.ne]: 'resolved' },
+        isActive: true  // Only show active (non-deleted) reports
+      },
+      include: [{
+        model: User,
+        as: 'citizen',
+        attributes: ['name']
+      }],
+      attributes: [
+        'id', 'reportId', 'latitude', 'longitude', 'address', 'landmark',
+        'originalImageFilename', 'processedImageFilename',
+        'detectedObjects', 'totalWasteArea', 'estimatedVolume', 
+        'wasteTypes', 'severityLevel', 'status', 'priority', 'createdAt'
+      ],
+      order: [['createdAt', 'DESC']],
+      limit: 100
+    });
     
-    console.log('📊 Public endpoint returning:', reports.length, 'reports');
-    res.json(reports);
+    // Transform data to match frontend expectations
+    const transformedReports = reports.map(report => ({
+      _id: report.id,
+      reportId: report.reportId,
+      location: {
+        coordinates: [report.longitude, report.latitude]
+      },
+      wasteDetection: {
+        totalWasteArea: report.totalWasteArea,
+        estimatedVolume: report.estimatedVolume,
+        wasteTypes: report.wasteTypes,
+        severityLevel: report.severityLevel,
+        detectedObjects: report.detectedObjects
+      },
+      status: report.status,
+      priority: report.priority,
+      createdAt: report.createdAt,
+      originalImage: report.originalImageFilename ? { filename: report.originalImageFilename } : null,
+      processedImage: report.processedImageFilename ? { filename: report.processedImageFilename } : null
+    }));
+    
+    console.log('📊 Public endpoint returning:', transformedReports.length, 'reports');
+    res.json(transformedReports);
   } catch (error) {
     console.error('Error fetching public reports:', error);
     res.status(500).json({ message: 'Error fetching reports' });
@@ -105,38 +138,26 @@ router.post('/', authenticateToken, upload.single('wasteImage'), [
     const reportId = `WR-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
     
     // Create waste report
-    const wasteReport = new WasteReport({
+    const wasteReport = await WasteReport.create({
       reportId,
       citizenId: req.user.userId,
-      location: {
-        type: 'Point',
-        coordinates: [parseFloat(longitude), parseFloat(latitude)],
-        address,
-        landmark
-      },
-      originalImage: {
-        filename: req.file.filename,
-        path: req.file.path,
-        size: req.file.size,
-        mimetype: req.file.mimetype
-      },
-      processedImage: {
-        filename: yoloResults.processedFilename,
-        path: yoloResults.processedPath
-      },
-      wasteDetection: {
-        totalWasteArea: yoloResults.totalWasteArea,
-        estimatedVolume: yoloResults.estimatedVolume,
-        wasteTypes: yoloResults.wasteTypes,
-        severityLevel: yoloResults.severityLevel
-      },
+      latitude: parseFloat(latitude),
+      longitude: parseFloat(longitude),
+      address,
+      landmark,
+      originalImageFilename: req.file.filename,
+      originalImagePath: req.file.path,
+      originalImageSize: req.file.size,
+      originalImageMimetype: req.file.mimetype,
+      processedImageFilename: yoloResults.processedFilename,
+      processedImagePath: yoloResults.processedPath,
+      detectedObjects: yoloResults.detectedObjects || [],
+      totalWasteArea: yoloResults.totalWasteArea,
+      estimatedVolume: yoloResults.estimatedVolume,
+      wasteTypes: yoloResults.wasteTypes || [],
+      severityLevel: yoloResults.severityLevel || 'medium',
       priority
     });
-
-    await wasteReport.save();
-
-    // Populate citizen details
-    await wasteReport.populate('citizenId', 'name email phone');
 
     res.status(201).json({
       success: true,
@@ -172,14 +193,14 @@ router.post('/:id/comments', authenticateToken, [
     const reportId = req.params.id;
 
     // Check if report exists and user has access
-    let query = { _id: reportId, isActive: true };
+    let whereClause = { id: reportId, isActive: true };
     
     // Citizens can only comment on their own reports
     if (req.user.role === 'citizen') {
-      query.citizenId = req.user.userId;
+      whereClause.citizenId = req.user.userId;
     }
 
-    const report = await WasteReport.findOne(query);
+    const report = await WasteReport.findOne({ where: whereClause });
     if (!report) {
       return res.status(404).json({
         success: false,
@@ -194,14 +215,14 @@ router.post('/:id/comments', authenticateToken, [
       timestamp: new Date()
     };
 
-    report.comments.push(newComment);
-    await report.save();
-
-    // Populate the new comment with user details
-    await report.populate('comments.user', 'name email');
+    // Get existing comments and add new one
+    const existingComments = report.comments || [];
+    existingComments.push(newComment);
+    
+    await report.update({ comments: existingComments });
 
     // Get the newly added comment
-    const addedComment = report.comments[report.comments.length - 1];
+    const addedComment = existingComments[existingComments.length - 1];
 
     res.status(201).json({
       success: true,
@@ -235,62 +256,82 @@ router.get('/', authenticateToken, async (req, res) => {
     } = req.query;
 
     // Build query
-    let query = { isActive: true };
+    let whereClause = { isActive: true };
 
     // Role-based filtering
     if (req.user.role === 'citizen') {
-      query.citizenId = req.user.userId;
+      whereClause.citizenId = req.user.userId;
     }
 
     // Status filter
     if (status) {
-      query.status = status;
+      whereClause.status = status;
     }
 
     // Priority filter
     if (priority) {
-      query.priority = priority;
+      whereClause.priority = priority;
     }
 
     // Citizen filter (for authorities)
     if (citizenId && req.user.role !== 'citizen') {
-      query.citizenId = citizenId;
+      whereClause.citizenId = citizenId;
     }
 
     // Assigned to filter
     if (assignedTo && req.user.role !== 'citizen') {
-      query.assignedTo = assignedTo;
-    }
-
-    // Location-based filter
-    if (latitude && longitude) {
-      query.location = {
-        $near: {
-          $geometry: {
-            type: 'Point',
-            coordinates: [parseFloat(longitude), parseFloat(latitude)]
-          },
-          $maxDistance: parseInt(radius)
-        }
-      };
+      whereClause.assignedTo = assignedTo;
     }
 
     // Pagination
-    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const offset = (parseInt(page) - 1) * parseInt(limit);
 
-    const reports = await WasteReport.find(query)
-      .populate('citizenId', 'name email phone')
-      .populate('assignedTo', 'name email')
-      .populate('resolution.resolvedBy', 'name email')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(parseInt(limit));
+    const reports = await WasteReport.findAll({
+      where: whereClause,
+      include: [
+        {
+          model: User,
+          as: 'citizen',
+          attributes: ['name', 'email', 'phone']
+        },
+        {
+          model: User,
+          as: 'assignedUser',
+          attributes: ['name', 'email']
+        }
+      ],
+      order: [['createdAt', 'DESC']],
+      offset,
+      limit: parseInt(limit)
+    });
 
-    const total = await WasteReport.countDocuments(query);
+    const total = await WasteReport.count({ where: whereClause });
+
+    // Transform data to match frontend expectations
+    const transformedReports = reports.map(report => ({
+      _id: report.id,
+      reportId: report.reportId,
+      location: {
+        address: report.address,
+        coordinates: [report.longitude, report.latitude]
+      },
+      wasteDetection: {
+        totalWasteArea: report.totalWasteArea,
+        estimatedVolume: report.estimatedVolume,
+        wasteTypes: report.wasteTypes,
+        severityLevel: report.severityLevel,
+        detectedObjects: report.detectedObjects
+      },
+      status: report.status,
+      priority: report.priority,
+      createdAt: report.createdAt,
+      originalImage: report.originalImageFilename ? { filename: report.originalImageFilename } : null,
+      processedImage: report.processedImageFilename ? { filename: report.processedImageFilename } : null
+    }));
 
     res.json({
       success: true,
-      reports,
+      reports: transformedReports,
       pagination: {
         current: parseInt(page),
         pages: Math.ceil(total / parseInt(limit)),
@@ -312,29 +353,83 @@ router.get('/', authenticateToken, async (req, res) => {
 // @access  Private
 router.get('/:id', authenticateToken, async (req, res) => {
   try {
-    let query = { _id: req.params.id, isActive: true };
+    console.log('🔍 Fetching report:', req.params.id);
+    console.log('🔍 User role:', req.user.role);
+    console.log('🔍 User ID:', req.user.userId);
+    
+    let whereClause = { id: req.params.id, isActive: true };
 
     // Citizens can only see their own reports
     if (req.user.role === 'citizen') {
-      query.citizenId = req.user.userId;
+      whereClause.citizenId = req.user.userId;
     }
+    
+    console.log('🔍 Where clause:', whereClause);
 
-    const report = await WasteReport.findOne(query)
-      .populate('citizenId', 'name email phone')
-      .populate('assignedTo', 'name email')
-      .populate('resolution.resolvedBy', 'name email')
-      .populate('comments.user', 'name email');
+    const report = await WasteReport.findOne({
+      where: whereClause,
+      include: [
+        {
+          model: User,
+          as: 'citizen',
+          attributes: ['name', 'email', 'phone']
+        },
+        {
+          model: User,
+          as: 'assignedUser',
+          attributes: ['name', 'email']
+        }
+      ]
+    });
+
+    console.log('🔍 Report found:', !!report);
+    if (report) {
+      console.log('🔍 Report citizenId:', report.citizenId);
+      console.log('🔍 Report status:', report.status);
+    }
 
     if (!report) {
       return res.status(404).json({
         success: false,
-        message: 'Report not found'
+        message: 'Report not found or you don\'t have permission to view it.'
       });
     }
 
+    // Transform data to match frontend expectations
+    const transformedReport = {
+      _id: report.id,
+      reportId: report.reportId,
+      location: {
+        address: report.address,
+        coordinates: [report.longitude, report.latitude]
+      },
+      wasteDetection: {
+        totalWasteArea: report.totalWasteArea,
+        estimatedVolume: report.estimatedVolume,
+        wasteTypes: report.wasteTypes,
+        severityLevel: report.severityLevel,
+        detectedObjects: report.detectedObjects
+      },
+      status: report.status,
+      priority: report.priority,
+      createdAt: report.createdAt,
+      citizen: report.citizen ? {
+        name: report.citizen.name,
+        email: report.citizen.email,
+        phone: report.citizen.phone
+      } : null,
+      assignedUser: report.assignedUser ? {
+        name: report.assignedUser.name,
+        email: report.assignedUser.email
+      } : null,
+      comments: report.comments || [],
+      originalImage: report.originalImageFilename ? { filename: report.originalImageFilename } : null,
+      processedImage: report.processedImageFilename ? { filename: report.processedImageFilename } : null
+    };
+
     res.json({
       success: true,
-      report
+      report: transformedReport
     });
   } catch (error) {
     console.error('Report fetch error:', error);
@@ -349,7 +444,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
 // @desc    Assign report to authority
 // @access  Private (Authority/Admin)
 router.put('/:id/assign', authenticateToken, [
-  body('assignedTo').isMongoId().withMessage('Valid user ID required')
+  body('assignedTo').isUUID().withMessage('Valid user ID required')
 ], async (req, res) => {
   try {
     if (req.user.role === 'citizen') {
@@ -371,7 +466,9 @@ router.put('/:id/assign', authenticateToken, [
     const { assignedTo } = req.body;
 
     // Check if assigned user exists and is authority
-    const assignedUser = await User.findOne({ _id: assignedTo, role: 'authority', isActive: true });
+    const assignedUser = await User.findOne({ 
+      where: { id: assignedTo, role: 'authority', isActive: true } 
+    });
     if (!assignedUser) {
       return res.status(400).json({
         success: false,
@@ -379,14 +476,27 @@ router.put('/:id/assign', authenticateToken, [
       });
     }
 
-    const report = await WasteReport.findByIdAndUpdate(
-      req.params.id,
-      {
-        assignedTo,
-        status: 'in_progress'
-      },
-      { new: true }
-    ).populate('assignedTo', 'name email');
+    const report = await WasteReport.findByPk(req.params.id);
+    if (!report) {
+      return res.status(404).json({
+        success: false,
+        message: 'Report not found'
+      });
+    }
+
+    await report.update({
+      assignedTo,
+      status: 'in_progress'
+    });
+
+    // Load the assigned user details
+    await report.reload({
+      include: [{
+        model: User,
+        as: 'assignedTo',
+        attributes: ['name', 'email']
+      }]
+    });
 
     if (!report) {
       return res.status(404).json({
@@ -434,11 +544,22 @@ router.put('/:id/status', authenticateToken, [
 
     const { status } = req.body;
 
-    const report = await WasteReport.findByIdAndUpdate(
-      req.params.id,
-      { status },
-      { new: true }
-    ).populate('citizenId', 'name email');
+    const report = await WasteReport.findByPk(req.params.id);
+    if (!report) {
+      return res.status(404).json({
+        success: false,
+        message: 'Report not found'
+      });
+    }
+
+    await report.update({ status });
+    await report.reload({
+      include: [{
+        model: User,
+        as: 'citizen',
+        attributes: ['name', 'email']
+      }]
+    });
 
     if (!report) {
       return res.status(404).json({
@@ -487,17 +608,25 @@ router.put('/:id/resolve', authenticateToken, upload.array('afterImages', 5), [
     const { resolutionNotes } = req.body;
     const afterImages = req.files ? req.files.map(file => file.path) : [];
 
-    const report = await WasteReport.findByIdAndUpdate(
-      req.params.id,
-      {
-        status: 'resolved',
-        'resolution.resolvedBy': req.user.userId,
-        'resolution.resolvedAt': new Date(),
-        'resolution.resolutionNotes': resolutionNotes,
-        'resolution.beforeAfterImages': afterImages
-      },
-      { new: true }
-    ).populate('resolution.resolvedBy', 'name email');
+    const report = await WasteReport.findByPk(req.params.id);
+    if (!report) {
+      return res.status(404).json({
+        success: false,
+        message: 'Report not found'
+      });
+    }
+
+    const resolution = {
+      resolvedBy: req.user.userId,
+      resolvedAt: new Date(),
+      resolutionNotes: resolutionNotes,
+      beforeAfterImages: afterImages
+    };
+
+    await report.update({
+      status: 'resolved',
+      resolution: resolution
+    });
 
     if (!report) {
       return res.status(404).json({
@@ -523,27 +652,37 @@ router.put('/:id/resolve', authenticateToken, upload.array('afterImages', 5), [
 
 
 // @route   DELETE /api/reports/:id
-// @desc    Delete a waste report (only if pending and user owns it)
+// @desc    Permanently delete a waste report (only if pending and user owns it)
 // @access  Private
 router.delete('/:id', authenticateToken, async (req, res) => {
   try {
     const reportId = req.params.id;
+    console.log('🗑️ Delete request for report:', reportId);
+    console.log('🗑️ User making request:', req.user);
 
     // Find the report
-    const report = await WasteReport.findById(reportId);
+    const report = await WasteReport.findByPk(reportId);
     if (!report) {
+      console.log('🗑️ Report not found:', reportId);
       return res.status(404).json({
         success: false,
         message: 'Report not found'
       });
     }
 
+    console.log('🗑️ Found report:', {
+      id: report.id,
+      citizenId: report.citizenId,
+      status: report.status,
+      userId: req.user.userId
+    });
+
     // Check if user owns the report
-    console.log('Debug - report.citizenId:', report.citizenId, 'type:', typeof report.citizenId);
-    console.log('Debug - req.user.userId:', req.user.userId, 'type:', typeof req.user.userId);
-    console.log('Debug - comparison:', report.citizenId.toString(), '!==', req.user.userId.toString());
-    
-    if (report.citizenId.toString() !== req.user.userId.toString()) {
+    if (report.citizenId !== req.user.userId) {
+      console.log('🗑️ User does not own report:', {
+        reportCitizenId: report.citizenId,
+        userId: req.user.userId
+      });
       return res.status(403).json({
         success: false,
         message: 'You can only delete your own reports'
@@ -552,25 +691,17 @@ router.delete('/:id', authenticateToken, async (req, res) => {
 
     // Check if report is in pending status
     if (report.status !== 'pending') {
+      console.log('🗑️ Report is not pending:', report.status);
       return res.status(400).json({
         success: false,
         message: 'Only pending reports can be deleted'
       });
     }
 
-    // Soft delete by setting isActive to false
-    report.isActive = false;
-    
-    // Debug: Log before and after
-    console.log('Before save - isActive:', report.isActive);
-    console.log('Before save - report:', JSON.stringify(report, null, 2));
-    
-    await report.save();
-    
-    // Debug: Verify the save worked
-    const savedReport = await WasteReport.findById(reportId);
-    console.log('After save - isActive:', savedReport.isActive);
-    console.log('After save - report:', JSON.stringify(savedReport, null, 2));
+    console.log('🗑️ Proceeding with hard delete...');
+    // Hard delete - completely remove the report from database
+    await report.destroy();
+    console.log('🗑️ Report deleted successfully');
 
     res.json({
       success: true,

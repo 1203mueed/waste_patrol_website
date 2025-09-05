@@ -168,8 +168,17 @@ function ReportDetails() {
                        label={`${report.priority.toUpperCase()} PRIORITY`}
                        color={getPriorityColor(report.priority)}
                      />
-                     {/* Delete button - only show for pending reports owned by current user */}
-                     {report.status === 'pending' && report.citizenId?._id === user?.userId && (
+                     {/* Delete button - only show for pending reports owned by current user (citizens only) */}
+                     {(() => {
+                       console.log('🔍 Delete button debug:', {
+                         reportStatus: report.status,
+                         reportCitizenId: report.citizen?._id,
+                         userId: user?.userId,
+                         userRole: user?.role,
+                         shouldShow: report.status === 'pending' && report.citizen?._id === user?.userId && user?.role === 'citizen'
+                       });
+                       return report.status === 'pending' && report.citizen?._id === user?.userId && user?.role === 'citizen';
+                     })() && (
                        <Button
                          variant="outlined"
                          color="error"
@@ -203,7 +212,13 @@ function ReportDetails() {
                   </Typography>
                 )}
                 <Typography variant="caption" color="text.secondary">
-                  Coordinates: {report.location.coordinates[1].toFixed(6)}, {report.location.coordinates[0].toFixed(6)}
+                  Coordinates: {(() => {
+                    const lat = report.location.coordinates[1];
+                    const lng = report.location.coordinates[0];
+                    const numLat = typeof lat === 'number' ? lat : parseFloat(lat) || 0;
+                    const numLng = typeof lng === 'number' ? lng : parseFloat(lng) || 0;
+                    return `${numLat.toFixed(6)}, ${numLng.toFixed(6)}`;
+                  })()}
                 </Typography>
               </Box>
 
@@ -215,14 +230,14 @@ function ReportDetails() {
                 </Typography>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                   <Avatar sx={{ bgcolor: 'primary.main' }}>
-                    {report.citizenId?.name?.charAt(0)?.toUpperCase()}
+                    {report.citizen?.name?.charAt(0)?.toUpperCase() || 'A'}
                   </Avatar>
                   <Box>
                     <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                      {report.citizenId?.name || 'Anonymous'}
+                      {report.citizen?.name || 'Anonymous'}
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
-                      {report.citizenId?.email}
+                      {report.citizen?.email || 'No email provided'}
                     </Typography>
                   </Box>
                 </Box>
@@ -239,7 +254,11 @@ function ReportDetails() {
                     <Grid item xs={6} sm={4}>
                       <Paper sx={{ p: 2, textAlign: 'center' }}>
                         <Typography variant="h6" color="primary.main">
-                          {report.wasteDetection.estimatedVolume?.toFixed(2) || '0.00'}
+                          {(() => {
+                            const volume = report.wasteDetection.estimatedVolume;
+                            const numVolume = typeof volume === 'number' ? volume : parseFloat(volume) || 0;
+                            return numVolume.toFixed(2);
+                          })()}
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
                           Volume (m³)
@@ -277,7 +296,11 @@ function ReportDetails() {
                       </Typography>
                       <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                         <Chip
-                          label={`Volume: ${report.wasteDetection.estimatedVolume?.toFixed(2) || '0.00'} m³`}
+                          label={`Volume: ${(() => {
+                            const volume = report.wasteDetection.estimatedVolume;
+                            const numVolume = typeof volume === 'number' ? volume : parseFloat(volume) || 0;
+                            return numVolume.toFixed(2);
+                          })()} m³`}
                           size="small"
                           variant="outlined"
                           color="primary"
@@ -398,7 +421,7 @@ function ReportDetails() {
                          primary={
                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                              <Typography variant="subtitle2" component="span">
-                               {comment.user?.name || 'System'}
+                               {typeof comment.user === 'object' ? comment.user?.name : 'User'}
                              </Typography>
                              <Typography variant="caption" color="text.secondary" component="span">
                                {format(new Date(comment.timestamp), 'PPp')}
