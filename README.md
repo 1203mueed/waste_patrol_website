@@ -1,17 +1,17 @@
-# Waste Patrol - Smart Waste Management System
+# 🗑️ Waste Patrol - Smart Waste Management System
 
 A comprehensive waste management platform that combines AI-powered waste detection with citizen reporting and authority management tools.
 
 ![Waste Patrol Logo](public/logo.png)
 
-## 🌟 Features
+## 🌟 Key Features
 
-- **Smart Reporting**: Citizens can upload images of waste, which are automatically analyzed using YOLO AI
-- **AI-Powered Detection**: Automatic waste detection, classification, and volume estimation
-- **Interactive Heatmap**: Real-time visualization of waste distribution across the city
-- **Authority Dashboard**: Comprehensive management tools for waste cleanup operations
-- **Priority Management**: Automatic prioritization based on waste volume and type
-- **Mobile-Ready**: API-first architecture ready for mobile app integration
+- **🤖 AI-Powered Detection**: Automatic waste detection, classification, and volume estimation using YOLO v8
+- **📱 Smart Reporting**: Citizens upload images with automatic compression and AI analysis
+- **🗺️ Public Heatmap**: Real-time visualization accessible without login
+- **👥 Multi-Role System**: Citizens, Authorities, and Admins with different access levels
+- **📊 Interactive Dashboards**: Comprehensive analytics and management tools
+- **🔒 Secure & Scalable**: JWT authentication, rate limiting, and MongoDB database
 
 ## 🏗️ Architecture
 
@@ -36,52 +36,74 @@ A comprehensive waste management platform that combines AI-powered waste detecti
 ## 🚀 Quick Start
 
 ### Prerequisites
-- Node.js 16+ and npm
-- Python 3.8+
-- MongoDB 4.4+
-- Git
+- **Node.js** 16+ and npm
+- **Python** 3.8+
+- **MongoDB** 8.0+ (automatically installed on Windows)
+- **Git**
 
-### 1. Clone the Repository
+### 🎯 One-Command Start (Windows)
 ```bash
-git clone <repository-url>
-cd waste-patrol
+# Double-click start.bat or run:
+start.bat
 ```
 
-### 2. Set Up the Backend
+### 📋 Manual Setup
+
+**1. Install Dependencies**
+```bash
+# Frontend
+npm install
+
+# Backend
+cd backend && npm install && cd ..
+
+# Python AI Service
+cd python_service && pip install -r requirements.txt && cd ..
+```
+
+**2. Configure Environment**
 ```bash
 cd backend
-npm install
 cp env.example .env
-# Edit .env with your configuration
-npm run dev
+# MongoDB is automatically configured!
 ```
 
-### 3. Set Up the Python AI Service
+**3. Start All Services**
 ```bash
-cd python_service
-python -m pip install -r requirements.txt
-python run.py
-```
+# Terminal 1 - Backend (port 5000)
+cd backend && npm run dev
 
-### 4. Set Up the Frontend
-```bash
-cd ../
-npm install
+# Terminal 2 - Python AI (port 8000)  
+cd python_service && python run.py
+
+# Terminal 3 - Frontend (port 3000)
 npm start
 ```
 
-### 5. Set Up MongoDB
-Make sure MongoDB is running on your system:
-```bash
-# Ubuntu/Debian
-sudo systemctl start mongod
+**4. Access the Application**
+- **Frontend**: http://localhost:3000
+- **Public Heatmap**: http://localhost:3000/heatmap (no login required!)
+- **Backend API**: http://localhost:5000
 
-# macOS with Homebrew
-brew services start mongodb/brew/mongodb-community
+## 🆕 Latest Features
 
-# Windows
-net start MongoDB
-```
+### 🗺️ Public Heatmap
+- **No Login Required**: Anyone can view waste distribution
+- **Real-time Updates**: Live data refresh every 30 seconds
+- **Interactive Map**: Click markers for detailed information
+- **Priority-based Colors**: Visual representation of waste severity
+
+### 📱 Enhanced Reporting
+- **Automatic Image Compression**: Large images compressed to ≤10MB
+- **Smart Map Integration**: Clean CartoDB map styling
+- **Progress Tracking**: Real-time upload and processing feedback
+- **AI Analysis**: YOLO-powered waste detection and volume estimation
+
+### 🎨 UI/UX Improvements
+- **Consistent Map Styling**: Clean, minimal design across all pages
+- **Better Color Scheme**: Dark green (#1e4d2b) and red (#d32f2f) branding
+- **Responsive Design**: Works perfectly on all devices
+- **Enhanced Navigation**: Easy access to all features
 
 ## 📁 Project Structure
 

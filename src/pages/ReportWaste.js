@@ -1,7 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import {
   Container,
-  Paper,
   Typography,
   Box,
   TextField,
@@ -9,7 +8,6 @@ import {
   Grid,
   Card,
   CardContent,
-  Alert,
   CircularProgress,
   Chip,
   LinearProgress
@@ -60,10 +58,83 @@ function ReportWaste() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [processingStage, setProcessingStage] = useState('');
 
-  const onDrop = useCallback((acceptedFiles) => {
+  // Function to compress image
+  const compressImage = (file, maxSizeMB = 10) => {
+    return new Promise((resolve) => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      
+      img.onload = () => {
+        // Calculate new dimensions (maintain aspect ratio)
+        let { width, height } = img;
+        const maxDimension = 1920; // Max width or height
+        
+        if (width > height && width > maxDimension) {
+          height = (height * maxDimension) / width;
+          width = maxDimension;
+        } else if (height > maxDimension) {
+          width = (width * maxDimension) / height;
+          height = maxDimension;
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        
+        // Draw and compress
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        // Try different quality levels until file size is acceptable
+        let quality = 0.8;
+        const tryCompress = () => {
+          canvas.toBlob((blob) => {
+            const sizeMB = blob.size / (1024 * 1024);
+            
+            if (sizeMB <= maxSizeMB || quality <= 0.1) {
+              // Create new file with compressed data
+              const compressedFile = new File([blob], file.name, {
+                type: 'image/jpeg',
+                lastModified: Date.now()
+              });
+              resolve(compressedFile);
+            } else {
+              quality -= 0.1;
+              tryCompress();
+            }
+          }, 'image/jpeg', quality);
+        };
+        
+        tryCompress();
+      };
+      
+      img.src = URL.createObjectURL(file);
+    });
+  };
+
+  const onDrop = useCallback(async (acceptedFiles) => {
     if (acceptedFiles.length > 0) {
       const file = acceptedFiles[0];
-      setSelectedFile(file);
+      
+      // Check if file needs compression
+      const fileSizeMB = file.size / (1024 * 1024);
+      
+      if (fileSizeMB > 10) {
+        toast(`Compressing image from ${fileSizeMB.toFixed(2)}MB...`, {
+          icon: 'ℹ️',
+          duration: 3000
+        });
+        try {
+          const compressedFile = await compressImage(file, 10);
+          const compressedSizeMB = compressedFile.size / (1024 * 1024);
+          toast.success(`Image compressed to ${compressedSizeMB.toFixed(2)}MB`);
+          setSelectedFile(compressedFile);
+        } catch (error) {
+          console.error('Compression error:', error);
+          toast.error('Failed to compress image. Please try a smaller image.');
+        }
+      } else {
+        setSelectedFile(file);
+      }
     }
   }, []);
 
@@ -72,8 +143,8 @@ function ReportWaste() {
     accept: {
       'image/*': ['.jpeg', '.jpg', '.png']
     },
-    multiple: false,
-    maxSize: 10 * 1024 * 1024 // 10MB
+    multiple: false
+    // Removed maxSize restriction - we handle compression ourselves
   });
 
   const handleInputChange = (e) => {
@@ -211,7 +282,7 @@ function ReportWaste() {
                         }
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
-                        Supports: JPEG, PNG (Max 10MB)
+                        Supports: JPEG, PNG (Large images will be automatically compressed)
                       </Typography>
                     </Box>
                   )}
@@ -302,8 +373,8 @@ function ReportWaste() {
                     style={{ height: '100%', width: '100%' }}
                   >
                     <TileLayer
-                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                      url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
                     />
                     <LocationMarker position={position} setPosition={setPosition} />
                   </MapContainer>
