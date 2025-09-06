@@ -22,7 +22,10 @@
     "recharts": "^2.5.0"
   },
   "scripts": {
-    "start": "react-scripts start",
+    "start": "concurrently --names \"BACKEND,PYTHON,FRONTEND\" --prefix-colors \"blue,green,yellow\" \"cd backend && node server.js\" \"cd python_service && python app.py\" \"react-scripts start\"",
+    "start:frontend": "react-scripts start",
+    "start:backend": "cd backend && node server.js",
+    "start:python": "cd python_service && python app.py",
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
