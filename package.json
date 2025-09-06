@@ -22,10 +22,7 @@
     "recharts": "^2.5.0"
   },
   "scripts": {
-    "start": "concurrently --names \"BACKEND,PYTHON,FRONTEND\" --prefix-colors \"blue,green,yellow\" \"cd backend && node server.js\" \"cd python_service && python app.py\" \"react-scripts start\"",
-    "start:frontend": "react-scripts start",
-    "start:backend": "cd backend && node server.js",
-    "start:python": "cd python_service && python app.py",
+    "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
@@ -49,8 +46,5 @@
       "last 1 safari version"
     ]
   },
-  "proxy": "http://localhost:5000",
-  "devDependencies": {
-    "concurrently": "^9.2.1"
-  }
+  "proxy": "http://localhost:5000"
 }
