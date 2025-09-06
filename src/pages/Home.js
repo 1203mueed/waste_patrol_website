@@ -7,7 +7,6 @@ import {
   Grid,
   Card,
   CardContent,
-  CardActions,
   useTheme,
   alpha
 } from '@mui/material';
@@ -24,7 +23,7 @@ import { useAuth } from '../contexts/AuthContext';
 
 function Home() {
   const theme = useTheme();
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated } = useAuth();
 
   const features = [
     {

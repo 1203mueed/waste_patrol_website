@@ -99,7 +99,7 @@ export function AuthProvider({ children }) {
     );
 
     return () => axios.interceptors.response.eject(interceptor);
-  }, []);
+  }, [verifyToken, logout]);
 
   // Verify token validity
   const verifyToken = async () => {

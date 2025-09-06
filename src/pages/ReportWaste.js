@@ -409,7 +409,7 @@ function ReportWaste() {
                 variant="contained"
                 size="large"
                 startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <Send />}
-                disabled={loading}
+                disabled={loading}i
                 sx={{ px: 4, py: 1.5 }}
               >
                 {loading ? 'Processing Report...' : 'Submit Report'}

@@ -1,1 +1,12 @@
 node_modules
+
+# Environment variables and secrets
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.token
+*token*
+hugging face token.txt
+secrets/
