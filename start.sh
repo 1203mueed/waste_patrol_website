@@ -23,6 +23,8 @@ command_exists() {
 if ! command_exists node; then
     echo -e "${RED}ERROR: Node.js is not installed${NC}"
     echo "Please install Node.js from https://nodejs.org/"
+    echo "On macOS: brew install node"
+    echo "On Ubuntu/Debian: sudo apt install nodejs npm"
     exit 1
 fi
 
@@ -30,6 +32,8 @@ fi
 if ! command_exists python3; then
     echo -e "${RED}ERROR: Python 3 is not installed${NC}"
     echo "Please install Python 3 from https://python.org/"
+    echo "On macOS: brew install python"
+    echo "On Ubuntu/Debian: sudo apt install python3 python3-pip"
     exit 1
 fi
 
@@ -47,7 +51,7 @@ echo ""
 
 # Create necessary directories
 echo -e "${YELLOW}Creating necessary directories...${NC}"
-mkdir -p backend/uploads
+mkdir -p backend/uploads/waste-images
 mkdir -p python_service/uploads
 mkdir -p python_service/processed
 
@@ -62,12 +66,39 @@ if [ ! -d "backend/node_modules" ]; then
     cd backend && npm install && cd ..
 fi
 
+# Check if Python dependencies are installed
+if [ ! -d "python_service/__pycache__" ] && [ ! -f "python_service/.deps_installed" ]; then
+    echo -e "${YELLOW}Installing Python dependencies...${NC}"
+    cd python_service && pip3 install -r requirements.txt && touch .deps_installed && cd ..
+fi
+
 # Check if .env file exists
 if [ ! -f "backend/.env" ]; then
     echo -e "${YELLOW}Creating backend .env file...${NC}"
     cp backend/env.example backend/.env
     echo -e "${GREEN}✓ Created backend/.env from template${NC}"
-    echo -e "${YELLOW}⚠ Please edit backend/.env with your configuration${NC}"
+    echo -e "${YELLOW}⚠ Please edit backend/.env with your configuration if needed${NC}"
+fi
+
+# Check if database setup is needed
+echo ""
+echo -e "${YELLOW}Checking database setup...${NC}"
+echo -e "${YELLOW}If this is your first time running, you may need to set up the database:${NC}"
+echo -e "${BLUE}Run: npm run setup-db${NC}"
+echo ""
+
+# Check if PostgreSQL is running (optional check)
+if command_exists psql; then
+    echo -e "${YELLOW}Checking PostgreSQL connection...${NC}"
+    if psql -U postgres -h localhost -p 5432 -c '\q' 2>/dev/null; then
+        echo -e "${GREEN}✓ PostgreSQL is running${NC}"
+    else
+        echo -e "${YELLOW}⚠ PostgreSQL connection failed. Make sure PostgreSQL is running.${NC}"
+        echo "On macOS: brew services start postgresql"
+        echo "On Ubuntu/Debian: sudo systemctl start postgresql"
+    fi
+else
+    echo -e "${YELLOW}⚠ PostgreSQL not found in PATH. Make sure it's installed and running.${NC}"
 fi
 
 echo ""
@@ -75,6 +106,7 @@ echo -e "${BLUE}Services will start in the background:${NC}"
 echo -e "${GREEN}- Backend API: http://localhost:5000${NC}"
 echo -e "${GREEN}- Python AI Service: http://localhost:8000${NC}"
 echo -e "${GREEN}- Frontend: http://localhost:3000${NC}"
+echo -e "${GREEN}- Public Heatmap: http://localhost:3000/heatmap${NC}"
 echo ""
 
 # Function to cleanup background processes
@@ -91,7 +123,7 @@ trap cleanup SIGINT SIGTERM
 # Start Backend API
 echo -e "${BLUE}Starting Backend API...${NC}"
 cd backend
-npm run dev &
+npm start &
 BACKEND_PID=$!
 cd ..
 
@@ -101,7 +133,7 @@ sleep 3
 # Start Python AI Service
 echo -e "${BLUE}Starting Python AI Service...${NC}"
 cd python_service
-python3 run.py &
+python3 app.py &
 PYTHON_PID=$!
 cd ..
 
@@ -120,6 +152,7 @@ echo ""
 echo -e "${BLUE}Frontend: ${GREEN}http://localhost:3000${NC}"
 echo -e "${BLUE}Backend API: ${GREEN}http://localhost:5000${NC}"
 echo -e "${BLUE}Python AI Service: ${GREEN}http://localhost:8000${NC}"
+echo -e "${BLUE}Public Heatmap: ${GREEN}http://localhost:3000/heatmap${NC}"
 echo ""
 echo -e "${YELLOW}Press Ctrl+C to stop all services${NC}"
 echo -e "${GREEN}===============================================${NC}"

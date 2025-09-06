@@ -41,36 +41,6 @@ const Location = sequelize.define('Location', {
       country: 'Bangladesh'
     }
   },
-  // Boundaries data (stored as JSON)
-  boundaries: {
-    type: DataTypes.JSONB,
-    allowNull: true
-  },
-  // Waste collection schedule (stored as JSON)
-  wasteCollectionSchedule: {
-    type: DataTypes.JSONB,
-    allowNull: true,
-    defaultValue: {
-      frequency: 'weekly',
-      days: [],
-      time: null,
-      lastCollection: null,
-      nextCollection: null
-    },
-    field: 'waste_collection_schedule'
-  },
-  // Statistics (stored as JSON)
-  statistics: {
-    type: DataTypes.JSONB,
-    allowNull: true,
-    defaultValue: {
-      totalReports: 0,
-      resolvedReports: 0,
-      averageResolutionTime: null,
-      lastReportDate: null,
-      riskLevel: 'low'
-    }
-  },
   isActive: {
     type: DataTypes.BOOLEAN,
     defaultValue: true,

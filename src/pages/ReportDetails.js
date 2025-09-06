@@ -44,9 +44,12 @@ function ReportDetails() {
   const [comment, setComment] = useState('');
   const [submittingComment, setSubmittingComment] = useState(false);
 
+  console.log('🔍 User object:', user);
+
   const fetchReport = useCallback(async () => {
     try {
       const response = await axios.get(`/api/reports/${id}`);
+      console.log('🔍 Report data received:', response.data.report);
       setReport(response.data.report);
     } catch (error) {
       console.error('Error fetching report:', error);
@@ -173,11 +176,11 @@ function ReportDetails() {
                        console.log('🔍 Delete button debug:', {
                          reportStatus: report.status,
                          reportCitizenId: report.citizen?._id,
-                         userId: user?.userId,
+                         userId: user?.id,
                          userRole: user?.role,
-                         shouldShow: report.status === 'pending' && report.citizen?._id === user?.userId && user?.role === 'citizen'
+                         shouldShow: report.status === 'pending' && report.citizen?._id === user?.id && user?.role === 'citizen'
                        });
-                       return report.status === 'pending' && report.citizen?._id === user?.userId && user?.role === 'citizen';
+                       return report.status === 'pending' && report.citizen?._id === user?.id && user?.role === 'citizen';
                      })() && (
                        <Button
                          variant="outlined"

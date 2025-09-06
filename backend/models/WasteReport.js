@@ -45,35 +45,10 @@ const WasteReport = sequelize.define('WasteReport', {
     allowNull: true,
     field: 'original_image_filename'
   },
-  originalImagePath: {
-    type: DataTypes.STRING,
-    allowNull: true,
-    field: 'original_image_path'
-  },
-  originalImageSize: {
-    type: DataTypes.INTEGER,
-    allowNull: true,
-    field: 'original_image_size'
-  },
-  originalImageMimetype: {
-    type: DataTypes.STRING,
-    allowNull: true,
-    field: 'original_image_mimetype'
-  },
   processedImageFilename: {
     type: DataTypes.STRING,
     allowNull: true,
     field: 'processed_image_filename'
-  },
-  processedImagePath: {
-    type: DataTypes.STRING,
-    allowNull: true,
-    field: 'processed_image_path'
-  },
-  segmentedImagePath: {
-    type: DataTypes.STRING,
-    allowNull: true,
-    field: 'segmented_image_path'
   },
   // Waste detection data (stored as JSON)
   detectedObjects: {

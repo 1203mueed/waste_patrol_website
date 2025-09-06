@@ -4,6 +4,7 @@ const path = require('path');
 const fs = require('fs');
 const { body, validationResult } = require('express-validator');
 const { WasteReport, User } = require('../models');
+const { sequelize } = require('../config/database');
 const { authenticateToken } = require('../middleware/auth');
 const { processImageWithYOLO } = require('../services/yoloService');
 const router = express.Router();
@@ -146,11 +147,7 @@ router.post('/', authenticateToken, upload.single('wasteImage'), [
       address,
       landmark,
       originalImageFilename: req.file.filename,
-      originalImagePath: req.file.path,
-      originalImageSize: req.file.size,
-      originalImageMimetype: req.file.mimetype,
       processedImageFilename: yoloResults.processedFilename,
-      processedImagePath: yoloResults.processedPath,
       detectedObjects: yoloResults.detectedObjects || [],
       totalWasteArea: yoloResults.totalWasteArea,
       estimatedVolume: yoloResults.estimatedVolume,
@@ -192,25 +189,39 @@ router.post('/:id/comments', authenticateToken, [
     const { message } = req.body;
     const reportId = req.params.id;
 
+    console.log('💬 Comment request - User:', req.user.userId, 'Role:', req.user.role);
+    console.log('💬 Comment request - Report ID:', reportId);
+    console.log('💬 Comment request - Message:', message);
+
     // Check if report exists and user has access
     let whereClause = { id: reportId, isActive: true };
     
     // Citizens can only comment on their own reports
+    // Authorities and admins can comment on any report
     if (req.user.role === 'citizen') {
       whereClause.citizenId = req.user.userId;
     }
-
+    
+    console.log('💬 Where clause:', whereClause);
+    
     const report = await WasteReport.findOne({ where: whereClause });
     if (!report) {
+      console.log('💬 Report not found or access denied');
       return res.status(404).json({
         success: false,
         message: 'Report not found or access denied'
       });
     }
+    
+    console.log('💬 Report found:', report.id, 'Citizen ID:', report.citizenId);
 
-    // Add comment
+    // Add comment with user information
     const newComment = {
-      user: req.user.userId,
+      user: {
+        id: req.user.userId,
+        name: req.user.name || 'User',
+        role: req.user.role
+      },
       message: message.trim(),
       timestamp: new Date()
     };
@@ -219,7 +230,26 @@ router.post('/:id/comments', authenticateToken, [
     const existingComments = report.comments || [];
     existingComments.push(newComment);
     
-    await report.update({ comments: existingComments });
+    console.log('💬 Adding comment to array:', newComment);
+    console.log('💬 Updated comments array length:', existingComments.length);
+    
+    // Use raw SQL to update JSONB field (Sequelize has issues with JSONB updates)
+    await sequelize.query(
+      'UPDATE waste_reports SET comments = :comments WHERE id = :id',
+      {
+        replacements: {
+          comments: JSON.stringify(existingComments),
+          id: reportId
+        }
+      }
+    );
+
+    console.log('💬 SQL update completed');
+
+    // Reload the report to get the updated comments
+    await report.reload();
+    
+    console.log('💬 Report reloaded, comments:', report.comments);
 
     // Get the newly added comment
     const addedComment = existingComments[existingComments.length - 1];
@@ -292,7 +322,7 @@ router.get('/', authenticateToken, async (req, res) => {
         {
           model: User,
           as: 'citizen',
-          attributes: ['name', 'email', 'phone']
+          attributes: ['id', 'name', 'email', 'phone']
         },
         {
           model: User,
@@ -353,18 +383,12 @@ router.get('/', authenticateToken, async (req, res) => {
 // @access  Private
 router.get('/:id', authenticateToken, async (req, res) => {
   try {
-    console.log('🔍 Fetching report:', req.params.id);
-    console.log('🔍 User role:', req.user.role);
-    console.log('🔍 User ID:', req.user.userId);
-    
     let whereClause = { id: req.params.id, isActive: true };
 
     // Citizens can only see their own reports
     if (req.user.role === 'citizen') {
       whereClause.citizenId = req.user.userId;
     }
-    
-    console.log('🔍 Where clause:', whereClause);
 
     const report = await WasteReport.findOne({
       where: whereClause,
@@ -372,7 +396,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
         {
           model: User,
           as: 'citizen',
-          attributes: ['name', 'email', 'phone']
+          attributes: ['id', 'name', 'email', 'phone']
         },
         {
           model: User,
@@ -382,11 +406,6 @@ router.get('/:id', authenticateToken, async (req, res) => {
       ]
     });
 
-    console.log('🔍 Report found:', !!report);
-    if (report) {
-      console.log('🔍 Report citizenId:', report.citizenId);
-      console.log('🔍 Report status:', report.status);
-    }
 
     if (!report) {
       return res.status(404).json({
@@ -414,6 +433,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
       priority: report.priority,
       createdAt: report.createdAt,
       citizen: report.citizen ? {
+        _id: report.citizen.id,
         name: report.citizen.name,
         email: report.citizen.email,
         phone: report.citizen.phone

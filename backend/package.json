@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
-    "migrate": "node scripts/migrate-to-postgres.js",
+    "setup-db": "node scripts/setup-database.js",
+    "cleanup-db": "node scripts/cleanup-database.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {

@@ -2,7 +2,7 @@
 
 **Smart Waste Management System with AI-Powered Detection**
 
-Follow this comprehensive guide to get your Waste Patrol system running on your local machine. This system includes a React frontend, Node.js backend, Python AI service with YOLO, and MongoDB database.
+Follow this comprehensive guide to get your Waste Patrol system running on your local machine. This system includes a React frontend, Node.js backend, Python AI service with YOLO, and PostgreSQL database.
 
 ## 📋 Prerequisites
 
@@ -13,18 +13,70 @@ Make sure you have the following installed:
 - **PostgreSQL** (v12 or higher) - [Download here](https://www.postgresql.org/download/)
 - **Git** - [Download here](https://git-scm.com/)
 
-## 🚀 Quick Start (Windows)
+## 🚀 Quick Start
 
-### Option 1: Automated Start
+### Windows
 ```bash
 # Double-click start.bat in Windows Explorer
 # OR run in terminal:
 start.bat
 ```
 
-### Option 2: Manual Start
+### macOS/Linux
 ```bash
-# Clone and navigate (if using git)
+# Make script executable and run:
+chmod +x start.sh
+./start.sh
+```
+
+## 🍎 macOS Setup Instructions
+
+### Prerequisites for macOS
+1. **Install Homebrew** (if not already installed):
+   ```bash
+   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+   ```
+
+2. **Install Node.js**:
+   ```bash
+   brew install node
+   ```
+
+3. **Install Python**:
+   ```bash
+   brew install python
+   ```
+
+4. **Install PostgreSQL**:
+   ```bash
+   brew install postgresql
+   brew services start postgresql
+   ```
+
+5. **Create PostgreSQL user and database**:
+   ```bash
+   createuser -s postgres
+   createdb waste_patrol
+   psql -U postgres -c "ALTER USER postgres PASSWORD 'waste_patrol';"
+   ```
+
+### macOS Quick Start
+```bash
+# Clone the repository
+git clone <your-repo-url>
+cd waste-patrol
+
+# Make start script executable
+chmod +x start.sh
+
+# Run the start script
+./start.sh
+```
+
+## 📋 Manual Setup
+
+### Step 1: Clone Repository
+```bash
 git clone <your-repository-url>
 cd waste-patrol
 ```
@@ -46,20 +98,62 @@ cd ..
 **Python AI Service:**
 ```bash
 cd python_service
-pip install -r requirements.txt
+pip install -r requirements.txt  # Windows
+pip3 install -r requirements.txt # macOS/Linux
 cd ..
 ```
 
-**Note:** All dependencies are already installed in your current setup!
+### Step 3: Setup PostgreSQL Database
 
-### Step 3: Setup Database
+#### Option A: Automated Setup (Recommended)
+```bash
+# Run the automated database setup script
+npm run setup-db
+```
 
-**PostgreSQL Setup:**
+This script will:
+- Test PostgreSQL connection
+- Create the `waste_patrol` database
+- Create all necessary tables
+- Enable UUID extension
+- Run database cleanup
+
+#### Option B: Manual Setup
+
+**Windows**
 1. Install PostgreSQL from [postgresql.org](https://www.postgresql.org/download/)
-2. Create a database named `waste_patrol`
-3. Update your `.env` file with PostgreSQL credentials
+2. Open pgAdmin or use command line
+3. Create database and user
 
-**Create Database:**
+**macOS**
+```bash
+# Start PostgreSQL service
+brew services start postgresql
+
+# Create user and database
+createuser -s postgres
+createdb waste_patrol
+psql -U postgres -c "ALTER USER postgres PASSWORD 'waste_patrol';"
+```
+
+**Linux (Ubuntu/Debian)**
+```bash
+# Install PostgreSQL
+sudo apt update
+sudo apt install postgresql postgresql-contrib
+
+# Start service
+sudo systemctl start postgresql
+sudo systemctl enable postgresql
+
+# Create user and database
+sudo -u postgres psql
+CREATE DATABASE waste_patrol;
+ALTER USER postgres PASSWORD 'waste_patrol';
+\q
+```
+
+**Manual Database Creation:**
 ```sql
 -- Connect to PostgreSQL as superuser
 psql -U postgres
@@ -70,19 +164,15 @@ ALTER USER postgres PASSWORD 'waste_patrol';
 \q
 ```
 
-**Database Status:** ✅ Ready for configuration
-
 ### Step 4: Configure Environment
 
-**✅ Backend Configuration Complete:**
+**Backend Configuration:**
 ```bash
 cd backend
 cp env.example .env
 ```
 
-**Environment Status:** ✅ Configured and ready
-
-Your `.env` file contains:
+**Environment Variables (.env):**
 ```env
 PORT=5000
 NODE_ENV=development
@@ -91,7 +181,7 @@ DB_PORT=5432
 DB_NAME=waste_patrol
 DB_USER=postgres
 DB_PASSWORD=waste_patrol
-JWT_SECRET=your-super-secret-key-change-this
+JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
 JWT_EXPIRE=7d
 MAX_FILE_SIZE=10485760
 UPLOAD_PATH=./uploads
@@ -107,22 +197,20 @@ You'll need **3 terminal windows**:
 **Terminal 1 - Backend API:**
 ```bash
 cd backend
-npm run dev
+npm start
 ```
-**Status:** ✅ Ready to start
 
 **Terminal 2 - Python AI Service:**
 ```bash
 cd python_service
-python app.py
+python app.py    # Windows
+python3 app.py   # macOS/Linux
 ```
-**Status:** ✅ Ready to start
 
 **Terminal 3 - Frontend:**
 ```bash
 npm start
 ```
-**Status:** ✅ Ready to start
 
 ### Step 6: Access the Application
 
@@ -132,12 +220,17 @@ npm start
 - **Python AI Service**: http://localhost:8000
 - **Public Heatmap**: http://localhost:3000/heatmap (no login required!)
 
-**🚀 Quick Access:**
-- **Homepage**: http://localhost:3000
-- **Live Heatmap**: http://localhost:3000/heatmap
-- **User Dashboard**: http://localhost:3000/dashboard (after login)
-
 ## 🆕 Latest Features & Improvements
+
+### 💬 Comments System
+- **Real-time Comments**: Users can add comments to reports
+- **User Information**: Comments display user names and timestamps
+- **Role-based Access**: Citizens can comment on their own reports, authorities on any report
+
+### 🗑️ Report Management
+- **Delete Functionality**: Citizens can delete their own pending reports
+- **Status Tracking**: Real-time status updates and progress tracking
+- **Priority System**: Automatic priority assignment based on waste volume
 
 ### 🗺️ Public Heatmap (No Login Required)
 - **Live Waste Visualization**: View all active waste reports on an interactive map
@@ -147,13 +240,13 @@ npm start
 - **Interactive Map**: Click on markers for detailed information
 
 ### 🎨 Enhanced UI/UX
-- **Better Logo Visibility**: Updated theme colors for better contrast with transparent logo
+- **Better Logo Visibility**: Updated theme colors for better contrast
 - **Enhanced Navigation**: Added heatmap links in navbar and homepage
 - **Improved Styling**: Better button layouts and responsive design
 - **Brand Colors**: Primary #1e4d2b (dark green), Secondary #d32f2f (dark red)
 
 ### 🔧 Technical Improvements
-- **Local MongoDB**: Automatically installed and configured
+- **PostgreSQL Database**: Optimized database schema with cleaned up columns
 - **Public API Endpoint**: `/api/reports/public` for heatmap data
 - **Better Error Handling**: Improved fallbacks and user experience
 - **Fixed Backend Issues**: Resolved reportId generation and data structure problems
@@ -179,7 +272,8 @@ The system includes a pre-trained YOLO model (`train5_11.pt`) in the root direct
 
 ```bash
 # Verify the model file exists
-ls -la train5_11.pt
+ls -la train5_11.pt  # macOS/Linux
+dir train5_11.pt     # Windows
 ```
 
 **AI Service Status:** ✅ Python service ready with all dependencies
@@ -205,7 +299,7 @@ ls -la train5_11.pt
 
 **Backend API:**
 ```bash
-curl http://localhost:5000/api/health
+curl http://localhost:5000/api/reports/public
 ```
 
 **Python AI Service:**
@@ -232,33 +326,15 @@ curl http://localhost:8000/health
 4. Submit the report
 5. Check if the AI processing works
 
-## 🧪 Testing the System
+### 5. Test Comments System
+1. Go to a report details page
+2. Try adding a comment
+3. Check that comments display with user names
 
-### 1. Health Check
-Once all services are running, test:
-- Frontend: http://localhost:3000 (should show homepage)
-- Backend: http://localhost:5000/api/health (should return JSON)
-- Python Service: http://localhost:8000/health (should return JSON)
-
-### 2. Test Public Heatmap
-1. Go to http://localhost:3000/heatmap
-2. You should see an interactive map with waste reports
-3. No login required - this is a public feature!
-4. Check that the map loads and shows sample data
-5. Click on markers for detailed information
-
-### 3. Create Test Account
-1. Go to http://localhost:3000
-2. Click "Register" 
-3. Create a citizen account
-4. Login and test the system
-
-### 4. Test Waste Reporting
-1. Click "Report Waste"
-2. Upload a test image
-3. Select location on map
-4. Submit report
-5. Check AI processing results
+### 6. Test Delete Functionality
+1. Create a report as a citizen
+2. Go to report details
+3. Try deleting the report (should work for pending reports only)
 
 ## 🐛 Troubleshooting
 
@@ -269,8 +345,10 @@ Once all services are running, test:
 Error: connect ECONNREFUSED 127.0.0.1:5432
 ```
 **Solution:** Make sure PostgreSQL is running and configured:
+
+**Windows:**
 ```bash
-# Check if PostgreSQL is running (Windows)
+# Check if PostgreSQL is running
 Get-Service | Where-Object {$_.Name -like "*postgresql*"}
 
 # Start PostgreSQL if not running
@@ -280,14 +358,39 @@ net start postgresql-x64-14
 psql -U postgres -h localhost -p 5432
 ```
 
+**macOS:**
+```bash
+# Check if PostgreSQL is running
+brew services list | grep postgresql
+
+# Start PostgreSQL if not running
+brew services start postgresql
+
+# Test connection
+psql -U postgres -h localhost -p 5432
+```
+
+**Linux:**
+```bash
+# Check if PostgreSQL is running
+sudo systemctl status postgresql
+
+# Start PostgreSQL if not running
+sudo systemctl start postgresql
+
+# Test connection
+psql -U postgres -h localhost -p 5432
+```
+
 **2. Python Dependencies Error**
 ```
 ModuleNotFoundError: No module named 'ultralytics'
 ```
-**Solution:** Dependencies are already installed, but if needed:
+**Solution:** Install dependencies:
 ```bash
 cd python_service
-pip install -r requirements.txt
+pip install -r requirements.txt  # Windows
+pip3 install -r requirements.txt # macOS/Linux
 ```
 
 **3. YOLO Model Not Found**
@@ -301,10 +404,21 @@ pip install -r requirements.txt
 Error: listen EADDRINUSE :::5000
 ```
 **Solution:** Kill the process using the port or change the port in your `.env` file:
+
+**Windows:**
 ```bash
-# Find and kill process on port 5000 (Windows)
+# Find and kill process on port 5000
 netstat -ano | findstr :5000
 taskkill /PID <PID_NUMBER> /F
+
+# Or change PORT in .env file
+PORT=5001
+```
+
+**macOS/Linux:**
+```bash
+# Find and kill process on port 5000
+lsof -ti:5000 | xargs kill -9
 
 # Or change PORT in .env file
 PORT=5001
@@ -316,18 +430,24 @@ Network Error
 ```
 **Solution:** Make sure the backend is running on port 5000 and the proxy is configured in `package.json`.
 
-**6. Report Submission Error**
+**6. Comments Not Working**
 ```
-Report submission error: AxiosError
+Comments are not adding
 ```
-**Solution:** ✅ Fixed! The system now properly generates reportId and handles data structures correctly.
+**Solution:** ✅ Fixed! The system now properly handles JSONB fields and user information in comments.
+
+**7. Delete Button Not Showing**
+```
+No delete button in report details
+```
+**Solution:** ✅ Fixed! The delete button now appears for citizens viewing their own pending reports.
 
 ### Performance Tips
 
-1. **Use SSD storage** for better MongoDB performance
+1. **Use SSD storage** for better PostgreSQL performance
 2. **Allocate sufficient RAM** for Python AI service (minimum 4GB recommended)
 3. **Use GPU** for faster YOLO inference (optional)
-4. **Enable MongoDB indexes** for better query performance
+4. **Enable PostgreSQL indexes** for better query performance
 
 ## 📱 Production Deployment
 
@@ -335,7 +455,7 @@ Report submission error: AxiosError
 
 1. **Set NODE_ENV to production**
 2. **Use strong JWT secrets**
-3. **Configure MongoDB Atlas**
+3. **Configure PostgreSQL database**
 4. **Set up proper logging**
 5. **Configure HTTPS**
 6. **Set up monitoring**
@@ -344,7 +464,7 @@ Report submission error: AxiosError
 
 - **Frontend:** Vercel, Netlify, AWS S3 + CloudFront
 - **Backend:** Heroku, AWS EC2, DigitalOcean
-- **Database:** MongoDB Atlas, AWS DocumentDB
+- **Database:** PostgreSQL Cloud, AWS RDS
 - **AI Service:** AWS EC2 with GPU, Google Cloud Run
 
 ## 🔐 Security Notes
@@ -373,21 +493,25 @@ After successful setup:
 1. **Test the Public Heatmap** - Visit http://localhost:3000/heatmap (no login required!)
 2. **Create Test Accounts** - Register as citizen and authority users
 3. **Test Waste Reporting** - Upload images and test AI processing
-4. **Customize the AI model** with your own waste detection data
-5. **Configure map tiles** for your specific region
-6. **Set up user roles** and permissions
-7. **Customize the UI** with your branding
-8. **Deploy to production** environment
+4. **Test Comments System** - Add comments to reports
+5. **Test Delete Functionality** - Try deleting pending reports
+6. **Customize the AI model** with your own waste detection data
+7. **Configure map tiles** for your specific region
+8. **Set up user roles** and permissions
+9. **Customize the UI** with your branding
+10. **Deploy to production** environment
 
 ## 🎉 **System Status: READY!**
 
 Your Waste Patrol system is now fully configured and ready to use:
 
-- ✅ **MongoDB**: Installed and running
+- ✅ **PostgreSQL**: Configured and ready
 - ✅ **Backend**: Configured and ready
 - ✅ **Python AI Service**: Dependencies installed
 - ✅ **Frontend**: Updated with new features
 - ✅ **Public Heatmap**: Accessible without login
+- ✅ **Comments System**: Working with user information
+- ✅ **Delete Functionality**: Working for pending reports
 - ✅ **All Issues**: Resolved and fixed
 
 **Happy coding! 🚀**

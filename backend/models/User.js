@@ -49,16 +49,6 @@ const User = sequelize.define('User', {
     defaultValue: true,
     field: 'is_active'
   },
-  lastLogin: {
-    type: DataTypes.DATE,
-    allowNull: true,
-    field: 'last_login'
-  },
-  profilePicture: {
-    type: DataTypes.STRING,
-    allowNull: true,
-    field: 'profile_picture'
-  }
 }, {
   tableName: 'users',
   hooks: {

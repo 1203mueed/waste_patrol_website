@@ -11,7 +11,8 @@ A comprehensive waste management platform that combines AI-powered waste detecti
 - **🗺️ Public Heatmap**: Real-time visualization accessible without login
 - **👥 Multi-Role System**: Citizens, Authorities, and Admins with different access levels
 - **📊 Interactive Dashboards**: Comprehensive analytics and management tools
-- **🔒 Secure & Scalable**: JWT authentication, rate limiting, and MongoDB database
+- **💬 Comments System**: Users can add comments and updates to reports
+- **🔒 Secure & Scalable**: JWT authentication, rate limiting, and PostgreSQL database
 
 ## 🏗️ Architecture
 
@@ -41,10 +42,19 @@ A comprehensive waste management platform that combines AI-powered waste detecti
 - **PostgreSQL** 12+ (install from [postgresql.org](https://www.postgresql.org/download/))
 - **Git**
 
-### 🎯 One-Command Start (Windows)
+### 🎯 One-Command Start
+
+#### Windows
 ```bash
 # Double-click start.bat or run:
 start.bat
+```
+
+#### macOS/Linux
+```bash
+# Make script executable and run:
+chmod +x start.sh
+./start.sh
 ```
 
 ### 📋 Manual Setup
@@ -62,6 +72,14 @@ cd python_service && pip install -r requirements.txt && cd ..
 ```
 
 **2. Setup PostgreSQL Database**
+
+**Option A: Automated Setup (Recommended)**
+```bash
+# Run the automated database setup script
+npm run setup-db
+```
+
+**Option B: Manual Setup**
 ```bash
 # Connect to PostgreSQL as superuser
 psql -U postgres
@@ -82,7 +100,7 @@ cp env.example .env
 **4. Start All Services**
 ```bash
 # Terminal 1 - Backend (port 5000)
-cd backend && npm run dev
+cd backend && npm start
 
 # Terminal 2 - Python AI (port 8000)  
 cd python_service && python app.py
@@ -96,7 +114,79 @@ npm start
 - **Public Heatmap**: http://localhost:3000/heatmap (no login required!)
 - **Backend API**: http://localhost:5000
 
+## 🍎 macOS Setup Instructions
+
+### Prerequisites for macOS
+1. **Install Homebrew** (if not already installed):
+   ```bash
+   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+   ```
+
+2. **Install Node.js**:
+   ```bash
+   brew install node
+   ```
+
+3. **Install Python**:
+   ```bash
+   brew install python
+   ```
+
+4. **Install PostgreSQL**:
+   ```bash
+   brew install postgresql
+   brew services start postgresql
+   ```
+
+5. **Create PostgreSQL user and database**:
+   ```bash
+   createuser -s postgres
+   createdb waste_patrol
+   psql -U postgres -c "ALTER USER postgres PASSWORD 'waste_patrol';"
+   ```
+
+### macOS Quick Start
+```bash
+# Clone the repository
+git clone <your-repo-url>
+cd waste-patrol
+
+# Make start script executable
+chmod +x start.sh
+
+# Run the start script
+./start.sh
+```
+
+### macOS Manual Setup
+```bash
+# Install dependencies
+npm install
+cd backend && npm install && cd ..
+cd python_service && pip3 install -r requirements.txt && cd ..
+
+# Setup environment
+cd backend
+cp env.example .env
+cd ..
+
+# Start services (in separate terminals)
+cd backend && npm start &
+cd python_service && python3 app.py &
+npm start
+```
+
 ## 🆕 Latest Features
+
+### 💬 Comments System
+- **Real-time Comments**: Users can add comments to reports
+- **User Information**: Comments display user names and timestamps
+- **Role-based Access**: Citizens can comment on their own reports, authorities on any report
+
+### 🗑️ Report Management
+- **Delete Functionality**: Citizens can delete their own pending reports
+- **Status Tracking**: Real-time status updates and progress tracking
+- **Priority System**: Automatic priority assignment based on waste volume
 
 ### 🗺️ Public Heatmap
 - **No Login Required**: Anyone can view waste distribution
@@ -110,26 +200,22 @@ npm start
 - **Progress Tracking**: Real-time upload and processing feedback
 - **AI Analysis**: YOLO-powered waste detection and volume estimation
 
-### 🎨 UI/UX Improvements
-- **Consistent Map Styling**: Clean, minimal design across all pages
-- **Better Color Scheme**: Dark green (#1e4d2b) and red (#d32f2f) branding
-- **Responsive Design**: Works perfectly on all devices
-- **Enhanced Navigation**: Easy access to all features
-
 ## 📁 Project Structure
 
 ```
 waste-patrol/
 ├── backend/                 # Node.js/Express API
-│   ├── models/             # MongoDB models
+│   ├── models/             # Sequelize models
 │   ├── routes/             # API routes
 │   ├── services/           # Business logic
 │   ├── middleware/         # Auth & validation
+│   ├── scripts/            # Database scripts
 │   └── server.js           # Main server file
 ├── python_service/         # Python AI service
 │   ├── app.py              # Flask application
 │   ├── requirements.txt    # Python dependencies
-│   └── run.py              # Service runner
+│   ├── uploads/            # Uploaded images
+│   └── processed/          # Processed images
 ├── src/                    # React frontend
 │   ├── components/         # Reusable components
 │   ├── pages/              # Page components
@@ -137,22 +223,65 @@ waste-patrol/
 │   └── App.js              # Main app component
 ├── public/                 # Static assets
 ├── train5_11.pt           # YOLO model file
+├── start.bat              # Windows start script
+├── start.sh               # macOS/Linux start script
 └── README.md
 ```
+
+## 🗄️ Database Setup
+
+### Automated Database Setup
+The easiest way to set up your database is using the automated script:
+
+```bash
+# From the project root directory
+npm run setup-db
+```
+
+This script will:
+- ✅ Test PostgreSQL connection
+- ✅ Create the `waste_patrol` database
+- ✅ Create all necessary tables using Sequelize models
+- ✅ Enable UUID extension for primary keys
+- ✅ Run database cleanup to remove unnecessary columns
+- ✅ Set up proper permissions
+
+### Manual Database Setup
+If you prefer to set up the database manually:
+
+```bash
+# Connect to PostgreSQL
+psql -U postgres
+
+# Create database and user
+CREATE DATABASE waste_patrol;
+ALTER USER postgres PASSWORD 'waste_patrol';
+\q
+```
+
+### Database Scripts Available
+- `npm run setup-db` - Complete database setup (recommended)
+- `cd backend && npm run setup-db` - Backend-specific setup
+- `cd backend && npm run cleanup-db` - Remove unnecessary columns
 
 ## 🔧 Configuration
 
 ### Backend Environment Variables (.env)
 ```env
 PORT=5000
+NODE_ENV=development
 DB_HOST=localhost
 DB_PORT=5432
 DB_NAME=waste_patrol
 DB_USER=postgres
 DB_PASSWORD=waste_patrol
-JWT_SECRET=your-super-secret-key
-PYTHON_SERVICE_URL=http://localhost:8000
+JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
+JWT_EXPIRE=7d
 MAX_FILE_SIZE=10485760
+UPLOAD_PATH=./uploads
+PYTHON_SERVICE_URL=http://localhost:8000
+RATE_LIMIT_WINDOW=15
+RATE_LIMIT_MAX_REQUESTS=100
 ```
 
 ### Frontend Configuration
@@ -169,24 +298,28 @@ The frontend automatically connects to the backend at `http://localhost:5000` vi
 - `POST /api/reports` - Create waste report
 - `GET /api/reports` - Get reports (with filters)
 - `GET /api/reports/:id` - Get single report
+- `POST /api/reports/:id/comments` - Add comment to report
 - `PUT /api/reports/:id/assign` - Assign report to authority
+- `PUT /api/reports/:id/status` - Update report status
 - `PUT /api/reports/:id/resolve` - Mark report as resolved
+- `DELETE /api/reports/:id` - Delete report (citizens only, pending reports)
 
-### Dashboard
-- `GET /api/dashboard/stats` - Get dashboard statistics
-- `GET /api/dashboard/heatmap` - Get heatmap data
-- `GET /api/dashboard/recent-activity` - Get recent activity
+### Public
+- `GET /api/reports/public` - Get public reports for heatmap
 
 ## 🎯 User Roles
 
 ### Citizens
 - Upload waste images with location
 - View their submitted reports
+- Add comments to their reports
+- Delete their own pending reports
 - Track resolution status
 - Access basic statistics
 
 ### Authorities
 - View all waste reports in their area
+- Add comments to any report
 - Assign reports to team members
 - Mark reports as resolved
 - Access comprehensive dashboard
@@ -226,17 +359,6 @@ The system estimates waste volume using:
 - Geographical clustering
 - Historical trend analysis
 
-## 📱 Mobile App Ready
-
-The API-first architecture makes it easy to integrate with mobile applications:
-
-- RESTful endpoints
-- JWT token authentication
-- File upload support
-- Geolocation integration
-- Real-time updates
-- Offline capability support
-
 ## 🔒 Security Features
 
 - JWT-based authentication
@@ -250,17 +372,44 @@ The API-first architecture makes it easy to integrate with mobile applications:
 ## 🚀 Deployment
 
 ### Production Environment
-1. Set up MongoDB Atlas or self-hosted MongoDB
+1. Set up PostgreSQL database (local or cloud)
 2. Deploy backend to cloud service (AWS, Heroku, etc.)
 3. Deploy Python service with GPU support for faster inference
 4. Build and deploy React frontend to CDN
 5. Configure environment variables
 6. Set up monitoring and logging
 
-### Docker Deployment (Optional)
+### Environment Variables for Production
+```env
+NODE_ENV=production
+DB_HOST=your-production-db-host
+DB_PASSWORD=your-secure-password
+JWT_SECRET=your-super-secure-jwt-secret
+```
+
+## 🐛 Troubleshooting
+
+### Common Issues
+
+**1. PostgreSQL Connection Error**
 ```bash
-# Build and run with Docker Compose
-docker-compose up -d
+# Check if PostgreSQL is running
+brew services list | grep postgresql  # macOS
+sudo systemctl status postgresql     # Linux
+Get-Service | Where-Object {$_.Name -like "*postgresql*"}  # Windows
+```
+
+**2. Port Already in Use**
+```bash
+# Find and kill process on port
+lsof -ti:5000 | xargs kill -9  # macOS/Linux
+netstat -ano | findstr :5000   # Windows
+```
+
+**3. Python Dependencies Error**
+```bash
+cd python_service
+pip3 install -r requirements.txt
 ```
 
 ## 🤝 Contributing
@@ -287,7 +436,7 @@ For support and questions:
 - YOLO v8 by Ultralytics
 - OpenStreetMap for mapping data
 - Material-UI for React components
-- MongoDB for database services
+- PostgreSQL for database services
 - All contributors and testers
 
 ---
