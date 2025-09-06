@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, useEffect } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
@@ -75,6 +75,34 @@ const AuthContext = createContext();
 export function AuthProvider({ children }) {
   const [state, dispatch] = useReducer(authReducer, initialState);
 
+  // Logout function
+  const logout = useCallback((showMessage = true) => {
+    // Remove token from localStorage
+    localStorage.removeItem('waste_patrol_token');
+    
+    // Remove authorization header
+    delete axios.defaults.headers.common['Authorization'];
+
+    dispatch({ type: ActionTypes.LOGOUT });
+    if (showMessage) {
+      toast.success('Logged out successfully', { duration: 1500 }); // Reduced duration to 1.5 seconds
+    }
+  }, []);
+
+  // Verify token validity
+  const verifyToken = useCallback(async () => {
+    try {
+      const response = await axios.get('/api/auth/profile');
+      dispatch({
+        type: ActionTypes.LOGIN_SUCCESS,
+        payload: { user: response.data.user }
+      });
+    } catch (error) {
+      console.error('Token verification failed:', error);
+      logout(false); // Don't show logout message for token verification failures
+    }
+  }, [logout]);
+
   // Set up axios interceptor for authentication
   useEffect(() => {
     const token = localStorage.getItem('waste_patrol_token');
@@ -100,20 +128,6 @@ export function AuthProvider({ children }) {
 
     return () => axios.interceptors.response.eject(interceptor);
   }, [verifyToken, logout]);
-
-  // Verify token validity
-  const verifyToken = async () => {
-    try {
-      const response = await axios.get('/api/auth/profile');
-      dispatch({
-        type: ActionTypes.LOGIN_SUCCESS,
-        payload: { user: response.data.user }
-      });
-    } catch (error) {
-      console.error('Token verification failed:', error);
-      logout(false); // Don't show logout message for token verification failures
-    }
-  };
 
   // Login function
   const login = async (email, password) => {
@@ -184,19 +198,6 @@ export function AuthProvider({ children }) {
     }
   };
 
-  // Logout function
-  const logout = (showMessage = true) => {
-    // Remove token from localStorage
-    localStorage.removeItem('waste_patrol_token');
-    
-    // Remove authorization header
-    delete axios.defaults.headers.common['Authorization'];
-
-    dispatch({ type: ActionTypes.LOGOUT });
-    if (showMessage) {
-      toast.success('Logged out successfully', { duration: 1500 }); // Reduced duration to 1.5 seconds
-    }
-  };
 
   // Clear error function
   const clearError = () => {
